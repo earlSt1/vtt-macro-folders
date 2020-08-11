@@ -811,6 +811,8 @@ function addEventListeners(){
         eventsSetup.push(folder.getAttribute('data-mfolder-id'))
         
     }
+    let search = document.querySelector('#macros .directory-header  input')
+    search.addEventListener('keyup',function(ev,searchTerm){handleSearchForFolders(ev,search.value)})
 }
 //Custom function handling if a macro is clicked while inside a folder
 function handleMacroClicked(event,macro){
@@ -818,6 +820,33 @@ function handleMacroClicked(event,macro){
     let macroId = macro.getAttribute('data-entity-id');
     let macroObj = game.macros.get(macroId);
     macroObj.sheet.render(true);
+}
+function handleSearchForFolders(event,searchTerm){
+    //Override default search functionality so we can hide folders
+    event.stopPropagation();
+
+    for (let folder of document.querySelectorAll('li.macro-folder')){
+        let shouldHide = true;
+        for (let macro of folder.querySelectorAll('li.directory-item.macro')){
+            if (!macro.innerText.includes(searchTerm)){
+                macro.style.display = 'none'
+            }else{
+                macro.style.display = 'flex'
+                shouldHide = false;
+            }
+        }
+        if (shouldHide){
+            closeFolder(folder);
+            folder.style.display = 'none';
+        }else {
+            openFolder(folder);
+            folder.style.display = '';
+        }
+        if (searchTerm.length==0){
+            closeFolder(folder);
+        }
+    }
+    
 }
 
 export class Settings{
@@ -835,10 +864,12 @@ export class Settings{
             type: Object,
             default:{}
         });
-        let allFolders = game.settings.get(mod,'mfolders');
-        if (allFolders['hidden'] == null){
-            allFolders['hidden']={'macroList':[],'titleText':'hidden-macros'};
-            game.settings.set(mod,'mfolders',allFolders);
+        if (game.user.isGM){
+            let allFolders = game.settings.get(mod,'mfolders');
+            if (allFolders['hidden'] == null){
+                allFolders['hidden']={'macroList':[],'titleText':'hidden-macros'};
+                game.settings.set(mod,'mfolders',allFolders);
+            }
         }
     }
     static updateFolder(folderData){
@@ -865,7 +896,9 @@ export class Settings{
 // ==========================
 var eventsSetup = []
 Hooks.on('renderMacroDirectory',async function(){
+    
     Settings.registerSettings()
+    
     
     await loadTemplates(["modules/macro-folders/macro-folder-edit.html"]);
     setupFolders("",[])
