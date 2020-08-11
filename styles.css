@@ -102,7 +102,7 @@ button.mfolder-submit#delete  {
 #macro .header-search > input{
   margin-left:4px;
 }
-#folder-create input[name='search-packs']{
+#folder-create input[name='search-macros']{
   width: calc(100% - 25px);
 }
 #folder-move input[name='search-folders']{
