@@ -5,6 +5,9 @@ This is a module for FoundryVTT which allows you to manage macros a bit easier b
 ## Instructions
 If you have used my other module Compendium Folders, you will be familiar with how this module works.
 
+#### When you first run the module, it will place all macros into the Unassigned state
+Create a folder using the buttom at the bottom and start adding unassigned macros to it.
+
 Each folder has 3 icons. Starting from the right
 - The Gear icon allows you to edit the macros inside a folder. They are grouped by Assigned (already in folders) and Unassigned (not in folders). You can also Delete a folder through this dialog, which will delete all child folders and move all macros within to Unassigned
 - The Folder icon allows you to create a folder beneath the current folder. 
