@@ -1,0 +1,69 @@
+<form id="folder-create" autocomplete="off" onsubmit="event.preventDefault();">
+
+    <div class="form-group">
+        <label>{{localize "FOLDER.Name"}}</label>
+        <input type="text" name="name" placeholder="Folder Name" value="{{folder.titleText}}"/>
+    </div>
+
+    <div class="form-group">
+        <label>{{localize "FOLDER.Color"}}</label>
+        <div class="flexrow">
+            <input type="text" name="color" value="{{folder.colorText}}" data-dtype="String"/>
+            <input type="color" value="{{folder.colorText}}" data-edit="color"/>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Folder Icon</label>
+        <div class="form-fields">
+            {{filePicker target="icon" type="image"}}
+            <input class="image" type="text" name="icon" placeholder="default folder" value="{{folder.folderIcon}}"/>
+        </div>
+    </div>
+    <div class="form-group">
+        <ul>
+        <li><i>Any marked macro(s) will be included in this folder. </i></li>
+        <li><i>A macro can only belong to one folder.</i></li>
+        <li><i>Marking macros already assigned to other folders will move them here.</i></li>
+        </ul>
+    </div><div class="form-group">
+        <div class='form-macro-list'>
+            <script>
+                document.querySelector("#folder-create input[name='search-macros']").addEventListener('keyup',function(event){
+                    let searchTerm = this.value;
+                    let packs = document.querySelectorAll('#folder-create .form-macro-list .macro-select')
+                    for (let pack of packs){
+                        if (pack.innerText.toLowerCase().includes(searchTerm.toLowerCase())){
+                            pack.style.display='';
+                        }else{
+                            pack.style.display='none';
+                        }
+                    }
+                })
+            </script>
+            <div class='form-header'>
+                <i class='fas fa-search'></i><input type='text' name='search-macros' placeholder='Search'/>
+            </div>
+            <h2>Assigned</h2>
+            {{#each amacros}}
+                <div class='flexrow macro-select macro-assigned'>
+                    <input type="checkbox" name="{{this.data._id}}" {{#ifInm this.data._id ../folder.macroList}} checked {{/ifInm}}/>
+                    <label for="{{this.data._id}}" style='margin-top:2px'>{{this.data.name}}</label>
+                </div>
+            {{/each}}
+            <h2>Unassigned</h2>
+            {{#each umacros}}
+                <div class='flexrow macro-select macro-unassigned'>
+                    <input type="checkbox" name="{{this.data._id}}"/>
+                    <label for="{{this.data._id}}" style='margin-top:2px;color:#666;'><i>{{this.data.name}}</i></label>
+                </div>
+            {{/each}}
+        </div>
+    </div>
+    <div class='flexrow'>
+        {{#if deleteText}}
+        <input type='hidden' name='delete' id='deleteValue' value=''/>
+        <button class='mfolder-submit' id='delete' type="submit" onclick="document.querySelector('#deleteValue').value='1';"><i class="fas fa-trash"></i> {{deleteText}}</button>
+        {{/if}}
+        <button class='mfolder-submit' type="submit"><i class="fas fa-check"></i> {{submitText}}</button>
+    </div>
+</form>

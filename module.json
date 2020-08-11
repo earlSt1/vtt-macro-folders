@@ -1,0 +1,16 @@
+{
+    "name": "macro-folders",
+    "title": "Macro Folders",
+    "description": "Collapsable folders for macros",
+    "author": "Erceron",
+    "version": "1.0.0",
+    "minimumCoreVersion": "0.6.5",
+    "compatibleCoreVersion":"0.6.5",
+    "esmodules": [
+        "./macro-folders.js"
+      ],
+    "styles": ["./styles.css"],
+    "url": "https://github.com/earlSt1/vtt-macro-folders",
+    "manifest": "https://raw.githubusercontent.com/earlSt1/vtt-macro-folders/master/module.json",
+    "download": "https://github.com/earlSt1/vtt-macro-folders/archive/master.zip"
+  }

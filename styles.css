@@ -1,0 +1,144 @@
+/* ----------------------------------------- */
+/*  Folders and Subfolders
+/* ----------------------------------------- */
+li.macro-folder > .macro-folder-header {
+  padding: 6px ;
+  line-height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border-top: 1px solid #000 ;
+  border-bottom: 1px solid #000 ;
+}
+li.macro-folder > .macro-folder-header h3 {
+  margin: 0;
+  color: #FFF;
+}
+li.macro-folder > .macro-folder-header h3 > i {
+  margin-right: 10px;
+}
+li.macro-folder > .macro-folder-header .edit-folder {
+  flex: 0 0 20px;
+  text-align: center;
+  font-size: 14px;
+}
+li.macro-folder.collapsed .subdirectory {
+  display: none;
+}
+li.macro-folder.collapsed > .macro-folder-header {
+  background: rgba(0, 0, 0, 0.5);
+}
+li.macro-folder.collapsed > .macro-folder-header h3 {
+  text-shadow: none;
+  color: inherit;
+}
+li.macro-folder.collapsed > .macro-folder-header h3 > i:before {
+  content: "\f07b";
+}
+li.macro-folder.collapsed > .macro-folder-header .edit-folder {
+  display: none;
+}
+li.macro-folder img{
+  width:22px;
+  height:22px;
+  margin-bottom:-6px;
+  margin-right:7px;
+  border:0px;
+  border-radius:0px;
+}
+li.macro-folder  label{
+  cursor:pointer;
+}
+/* Fix for issue #2 */
+#macro h3 {border: 0px !important;padding: 0px !important;background: none !important;}
+/* Form styles */
+.form-macro-list,.form-folder-list {
+  height:300px; 
+  overflow:auto;
+  background:rgba(0,0,0,0.05);
+  border:1px solid #7a7971;
+  border-radius:3px;
+  padding:1px 3px;
+  font-size:13px;
+}
+button.mfolder-submit{
+  width:50%
+}
+button.mfolder-submit#delete  {
+  background-color:#c51c1c
+}
+.macro-folder-header > .create-folder,.move-folder{
+  flex:none;
+  padding-right:3px;
+}
+.macro-folder-header > .create-folder {
+  padding-right:0px !important;
+}
+.folder-list{
+  margin:0px;
+  padding:0px;
+  position:relative !important;
+}
+.macro-list{
+  margin-left:3px !important;
+  position:relative !important;
+}
+.folder-list > .macro-folder{
+  flex:1;
+  list-style:none;
+}
+.folder-contents{
+  border-left:6px solid #000000;
+  border-bottom:2px solid #000000;
+}
+.folder-contents > .folder-list{
+  border-left:2px solid #333;
+}
+.macro-list > .macro-pack{
+  padding-top:10px !important ;
+  padding-bottom:10px !important ;
+  padding-left:5px !important ;
+  padding-right:5px !important ;
+  margin:0px !important
+}
+#macro .header-search > input{
+  margin-left:4px;
+}
+#folder-create input[name='search-packs']{
+  width: calc(100% - 25px);
+}
+#folder-move input[name='search-folders']{
+  width: calc(100% - 25px);
+}
+#folder-create i.fa-search{
+  padding-left:5px;
+  padding-right:5px;
+}
+#folder-move i.fa-search{
+  padding-left:5px;
+  padding-right:5px;
+}
+#folder-create .form-header{
+  padding-top:4px;
+  padding-bottom:4px;
+}
+#folder-move .form-header{
+  padding-top:4px;
+  padding-bottom:4px;
+}
+#folder-move input[type='radio']{
+  flex:none;
+  padding-left:10px
+}
+#import-export textarea{
+  height:300px;
+}
+ol.macro-list{
+  padding-left:2px;
+  padding-bottom:0px;
+  margin-bottom:0px;
+  margin-top:0px !important;
+
+}
+#macros-popout{
+  height:800px !important;
+}
+
