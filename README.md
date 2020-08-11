@@ -22,7 +22,9 @@ I would recommend once you are happy with your layout, to save your folder confi
 ## Future
 
 1. Custom folder ordering (currently defaults to alphabetical)
-2. An API for mod developers to utilise folders elsewhere
+2. Player-specific folder configurations
+3. Show + filter by permissions in edit dialog
+4. An API for mod developers to utilise folders elsewhere
 
 Any issues feel free to ping me on Discord (@Erceron#0370)
 
