@@ -81,7 +81,7 @@ export class MacroFolder{
     set folders(folders){this.folderList = folders;}
     get icon(){return this.folderIcon}
     set icon(nIcon){this.folderIcon=nIcon}
-    addmacro(macro){
+    addMacro(macro){
         this.macros.push(macro);
     }
     addFolder(macroFolder){
@@ -409,6 +409,9 @@ class ImportExportConfig extends FormApplication {
                 });
                 if (success){
                     game.settings.set(mod,'mfolders',importJson).then(function(){
+                        if (Object.keys(importJson).length===0){
+                            Settings.createInitialFolder();
+                        }
                         refreshFolders();
                         ui.notifications.info("Folder data imported successfully");
                     });
@@ -658,16 +661,18 @@ class MacroFolderEditConfig extends FormApplication {
     }
 }
 function refreshFolders(){  
-    let allFolders = document.querySelectorAll('.macro-folder')
-        let openFoldersSidebar = [];
-        for (let folder of allFolders){
-            if (!folder.hasAttribute('collapsed')){
-                //folder open
-                openFoldersSidebar.push(folder.getAttribute('data-mfolder-id'));
+    if (document.querySelector('section#macros') != null){
+        let allFolders = document.querySelectorAll('.macro-folder')
+            let openFoldersSidebar = [];
+            for (let folder of allFolders){
+                if (!folder.hasAttribute('collapsed')){
+                    //folder open
+                    openFoldersSidebar.push(folder.getAttribute('data-mfolder-id'));
+                }
             }
-        }
-    setupFolders('',openFoldersSidebar);
-    addEventListeners('');
+        setupFolders('',openFoldersSidebar);
+        addEventListeners('');
+    }
     //Hooks.call('rendermacroDirectory');
 }
 async function updateFolders(macrosToAdd,macrosToRemove,folder){
@@ -768,7 +773,9 @@ function showEditDialog(submenu,event){
     event.stopPropagation();
     let allFolders = game.settings.get(mod,'mfolders')
     let folderId = submenu.getAttribute('data-mfolder-id')
-    new MacroFolderEditConfig(allFolders[folderId]).render(true);   
+    let folderObject = new MacroFolder('','');
+    folderObject.initFromExisting(allFolders[folderId]);
+    new MacroFolderEditConfig(folderObject).render(true);   
 }
 function showCreateDialogWithPath(submenu,event){
     event.stopPropagation();
@@ -828,7 +835,7 @@ function handleSearchForFolders(event,searchTerm){
     for (let folder of document.querySelectorAll('li.macro-folder')){
         let shouldHide = true;
         for (let macro of folder.querySelectorAll('li.directory-item.macro')){
-            if (!macro.innerText.includes(searchTerm)){
+            if (!macro.innerText.toLowerCase().includes(searchTerm.toLowerCase())){
                 macro.style.display = 'none'
             }else{
                 macro.style.display = 'flex'
@@ -864,13 +871,24 @@ export class Settings{
             type: Object,
             default:{}
         });
+        
+        if (Object.keys(game.settings.get(mod,'mfolders')).length === 0){
+            this.createInitialFolder()
+        }
+    }
+    static createInitialFolder(){
         if (game.user.isGM){
             let allFolders = game.settings.get(mod,'mfolders');
-            if (allFolders['hidden'] == null){
-                allFolders['hidden']={'macroList':[],'titleText':'hidden-macros'};
-                game.settings.set(mod,'mfolders',allFolders);
-            }
+            allFolders['hidden']={'macroList':[],'titleText':'hidden-macros'};
+            let defaultFolder = new MacroFolder('Macros','#000000',[]);
+            defaultFolder.macros = Array.from(game.macros.keys());
+            allFolders[defaultFolder.uid]=defaultFolder;
+            game.settings.set(mod,'mfolders',allFolders).then(function(){
+                return true;
+            });
+            
         }
+        return false;
     }
     static updateFolder(folderData){
         let existingFolders = game.settings.get(mod,'mfolders');
@@ -895,12 +913,13 @@ export class Settings{
 // Main hook setup
 // ==========================
 var eventsSetup = []
-Hooks.on('renderMacroDirectory',async function(){
-    
-    Settings.registerSettings()
-    
-    
-    await loadTemplates(["modules/macro-folders/macro-folder-edit.html"]);
-    setupFolders("",[])
-    addEventListeners()
+Hooks.on('ready',async function(){
+    Settings.registerSettings();
+
+    Hooks.on('renderMacroDirectory',async function(){
+
+        await loadTemplates(["modules/macro-folders/macro-folder-edit.html"]);
+        setupFolders("",[])
+        addEventListeners()
+    });
 });
