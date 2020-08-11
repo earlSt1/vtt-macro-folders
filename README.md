@@ -2,7 +2,7 @@
 
 This is a module for FoundryVTT which allows you to manage macros a bit easier by implementing a folder system.
 
-![](./example.png)
+![](./example.PNG)
 
 ## Instructions
 If you have used my other module Compendium Folders, you will be familiar with how this module works.
