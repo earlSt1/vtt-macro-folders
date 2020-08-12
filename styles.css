@@ -141,4 +141,6 @@ ol.macro-list{
 #macros-popout{
   height:800px !important;
 }
-
+#macros-popout ol.directory-list{
+  max-height:none !important;
+}
