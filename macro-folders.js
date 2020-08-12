@@ -15,10 +15,7 @@ Handlebars.registerHelper('ifInm', function(elem, macros, options) {
     return options.inverse(this);
 });
 function alphaSortFolders(folders){
-    // let items = Object.keys(folders).map(function(key) {
-    //     return [key, folders[key]];
-    //   });
-    folders.sort(function(first,second){
+    return folders.sort(function(first,second){
         if (first['titleText']<second['titleText']){
             return -1;
         }
@@ -27,14 +24,9 @@ function alphaSortFolders(folders){
         }
         return 0;
     })
-    // let sortedFolders = {}
-    // for (let item of items){
-    //     sortedFolders[item[0]]=item[1];
-    // }
-    return folders
 }
 function alphaSortMacros(macros){
-    macros.sort(function(first,second){
+    return macros.sort(function(first,second){
         let firstName = first.data.name;
         let secondName = second.data.name;
         if (firstName < secondName){
@@ -45,7 +37,16 @@ function alphaSortMacros(macros){
             return 0;
         }
     });
-    return macros;
+}
+function alphaSortMacroKeys(keys){
+    return keys.sort(function(k1,k2){
+        if (game.macros.get(k1).data.name < game.macros.get(k2).data.name){
+            return -1;
+        } else if (game.macros.get(k1).data.name > game.macros.get(k2).data.name){
+            return 1;
+        }
+        return 0;
+    })
 }
 // ==========================
 // Folder object structure
@@ -81,6 +82,7 @@ export class MacroFolder{
     set folders(folders){this.folderList = folders;}
     get icon(){return this.folderIcon}
     set icon(nIcon){this.folderIcon=nIcon}
+
     addMacro(macro){
         this.macros.push(macro);
     }
@@ -299,7 +301,7 @@ function setupFolders(prefix,openFolders){
 
             let macroElements = [];
             if (folder.macroList.length>0){
-                for (let macroKey of folder.macroList.sort()){
+                for (let macroKey of alphaSortMacroKeys(folder.macroList)){
                     // Check if macro exists in DOM
                     // If it doesnt, ignore
                     let comp = allMacroElementsDict[macroKey]
