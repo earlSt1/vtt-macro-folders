@@ -21,10 +21,11 @@ I would recommend once you are happy with your layout, to save your folder confi
 
 ## Future
 
-1. Custom folder ordering (currently defaults to alphabetical)
-2. Player-specific folder configurations
-3. Show + filter by permissions in edit dialog
-4. An API for mod developers to utilise folders elsewhere
+1. Default folder for new macros to be added to
+2. Custom folder ordering (currently defaults to alphabetical)
+3. Player-specific folder configurations
+4. Show + filter by permissions in edit dialog
+5. An API for mod developers to utilise folders elsewhere
 
 Any issues feel free to ping me on Discord (@Erceron#0370)
 
