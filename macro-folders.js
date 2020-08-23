@@ -103,7 +103,7 @@ function createNewFolder(path){
     new MacroFolderEditConfig(new MacroFolder('New Folder','',path)).render(true) 
 }
 
-function createFolderFromObject(parent,macroFolder, macroElements,prefix,wasOpen){
+function createFolderFromObject(parent,macroFolder, macroElements,prefix,isOpen){
     let folder = document.createElement('li')
     folder.classList.add('macro-entity','macro-folder')
     let header = document.createElement('header')
@@ -158,7 +158,7 @@ function createFolderFromObject(parent,macroFolder, macroElements,prefix,wasOpen
     if (macroFolder.folderIcon == null){
         folderIcon = document.createElement('i')
         folderIcon.classList.add('fas','fa-fw')
-        if (!wasOpen){
+        if (!isOpen){
             folderIcon.classList.add('fa-folder');
         }else{
             folderIcon.classList.add('fa-folder-open')
@@ -169,20 +169,31 @@ function createFolderFromObject(parent,macroFolder, macroElements,prefix,wasOpen
         folderCustomIcon.src = macroFolder.folderIcon;
         folderIconHTML = folderCustomIcon.outerHTML;
     }
-    if (!wasOpen){
+    if (!isOpen){
         contents.style.display='none';
+        
         //macroList.style.display='none';
         //folderList.style.display='none';
+        
         cogLink.style.display='none';
+
         newFolderLink.style.display='none';
         moveFolderLink.style.display='none';
+        
         folder.setAttribute('collapsed','');
     }
     let title = document.createElement('h3')
     title.innerHTML = folderIconHTML+macroFolder.titleText;
 
-   
-    
+    if (macroFolder._id === 'default'){
+        moveFolderLink.style.display='none';
+        newFolderLink.style.display='none';
+    }
+    if (!game.user.isGM){
+        moveFolderLink.style.display='none';
+        newFolderLink.style.display='none';
+        cogLink.style.display='none';
+    }
     header.appendChild(title);
     header.appendChild(moveFolderLink);
     header.appendChild(newFolderLink);
@@ -238,7 +249,8 @@ function createDefaultFolder(prefix,defaultFolder,hiddenFolder,remainingElements
             }  
         });
         if (remainingElementsList.length>0){
-            let folderObject = createFolderFromObject(tab,defaultFolder,remainingElementsList,prefix,false);
+            let openFolders = game.settings.get(mod,'open-folders')
+            let folderObject = createFolderFromObject(tab,defaultFolder,remainingElementsList,prefix,openFolders.includes(defaultFolder._id));
             insertDefaultFolder(prefix,folderObject);
         }
     }
@@ -276,15 +288,24 @@ function checkForDeletedMacros(){
 * Takes a prefix (a selector to determine whether to modify the Sidebar or Popup window)
 * and a list of previously open folders
 */
-function setupFolders(prefix,openFolders){
+function setupFolders(prefix){
 
     let allFolders = checkForDeletedMacros();
+    let openFolders = game.settings.get(mod,'open-folders');
+    // let allFoldersEntries = game.settings.get(mod,'open-folders')
+    // for (let folder of allFoldersEntries){
+    //     if (folder.isOpen && true){
+    //         //folder open
+    //         openFolders.push(folder._id);
+    //     }
+    // }
+    
     let allMacroElements = document.querySelectorAll(prefix+'li.macro.directory-item');
 
     for (let existingFolder of document.querySelectorAll('.macro-folder')){
-        if (!existingFolder.hasAttribute('collapsed')){
-            openFolders.push(existingFolder.getAttribute('data-mfolder-id'));
-        }
+        // if (!existingFolder.hasAttribute('collapsed')){
+        //     openFolders.push(existingFolder.getAttribute('data-mfolder-id'));
+        // }
         existingFolder.remove();
     }
     //Remove hidden macro (so we can add new stuff to it later if from refresh)
@@ -713,15 +734,8 @@ class MacroFolderEditConfig extends FormApplication {
 }
 function refreshFolders(){  
     if (document.querySelector('section#macros') != null){
-        let allFolders = document.querySelectorAll('.macro-folder')
-            let openFoldersSidebar = [];
-            for (let folder of allFolders){
-                if (!folder.hasAttribute('collapsed')){
-                    //folder open
-                    openFoldersSidebar.push(folder.getAttribute('data-mfolder-id'));
-                }
-            }
-        setupFolders('',openFoldersSidebar);
+       
+        setupFolders('');
         addEventListeners('');
     }
     //Hooks.call('rendermacroDirectory');
@@ -771,7 +785,7 @@ async function updateFolders(macrosToAdd,macrosToRemove,folder){
 // ==========================
 // Event funtions
 // ==========================
-function closeFolder(parent){
+function closeFolder(parent,save){
     let folderIcon = parent.firstChild.querySelector('h3 > .fa-folder, .fa-folder-open')
     let cogLink = parent.querySelector('a.edit-folder')
     let newFolderLink = parent.querySelector('a.create-folder');
@@ -793,8 +807,13 @@ function closeFolder(parent){
         }
     }
     parent.setAttribute('collapsed','');
+    if (save){
+        let openFolders = game.settings.get(mod,'open-folders');
+        openFolders.splice(openFolders.indexOf(parent.getAttribute('data-mfolder-id')),1);
+        game.settings.set(mod,'open-folders',openFolders).then(() => {return true;});
+    }
 }
-function openFolder(parent){
+function openFolder(parent,save){
     let folderIcon = parent.firstChild.querySelector('h3 > .fa-folder, .fa-folder-open')
     let cogLink = parent.querySelector('a.edit-folder')
     let newFolderLink = parent.querySelector('a.create-folder');
@@ -815,17 +834,24 @@ function openFolder(parent){
         }
     }
     parent.removeAttribute('collapsed');
+    if (save){
+        let openFolders = game.settings.get(mod,'open-folders');
+        openFolders.push(parent.getAttribute('data-mfolder-id'));
+        game.settings.set(mod,'open-folders',openFolders).then(() => {return true;});
+    }
 }
 function toggleFolder(event,parent){
     event.stopPropagation();
+    let success = true;
     if (parent.hasAttribute('collapsed')){
-        openFolder(parent);
+        success = success && openFolder(parent,true);
     }else{
-        closeFolder(parent);
+        success = success && closeFolder(parent,true);
         for (let child of parent.querySelectorAll('.macro-folder')){
-            closeFolder(child);
+            success = success && closeFolder(child,true);
         }
     }
+    return success;
 }
 
 function showEditDialog(submenu,event){
@@ -902,14 +928,14 @@ function handleSearchForFolders(event,searchTerm){
             }
         }
         if (shouldHide){
-            closeFolder(folder);
+            closeFolder(folder,false);
             folder.style.display = 'none';
         }else {
-            openFolder(folder);
+            openFolder(folder,false);
             folder.style.display = '';
         }
         if (searchTerm.length==0){
-            closeFolder(folder);
+            closeFolder(folder,false);
         }
     }
     
@@ -930,6 +956,12 @@ export class Settings{
             type: Object,
             default:{}
         });
+        game.settings.register(mod,'open-folders',{
+            scope: 'client',
+            config:false,
+            type: Object,
+            default:[]
+        });
         
         if (Object.keys(game.settings.get(mod,'mfolders')).length === 0){
             this.createInitialFolder()
@@ -939,6 +971,7 @@ export class Settings{
         if (game.user.isGM){
             let allFolders = game.settings.get(mod,'mfolders');
             allFolders['hidden']={'macroList':[],'titleText':'hidden-macros'};
+            allFolders['default']={'macroList':[],'titleText':'Default','colorText':'#000000','_id':'default'};
             let defaultFolder = new MacroFolder('Macros','#000000',[]);
             defaultFolder.macros = Array.from(game.macros.keys());
             allFolders[defaultFolder.uid]=defaultFolder;
@@ -978,7 +1011,7 @@ Hooks.on('ready',async function(){
     Hooks.on('renderMacroDirectory',async function(){
 
         await loadTemplates(["modules/macro-folders/macro-folder-edit.html"]);
-        setupFolders("",[])
+        setupFolders("")
         addEventListeners()
     });
 });
