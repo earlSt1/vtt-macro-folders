@@ -193,26 +193,60 @@ function createFolderFromObject(parent,macroFolder, macroElements,prefix,wasOpen
     folder.appendChild(contents);
 
     folder.setAttribute('data-mfolder-id',macroFolder._id);
-    parent.appendChild(folder)
+    if (macroFolder._id==='default'){
+        return folder;
+    }else{
+        parent.appendChild(folder)
+        return null;
+    }
 }
 
 
-function createHiddenFolder(prefix,remainingElements){
+function createHiddenFolder(prefix){
     let tab = document.querySelector(prefix+'.sidebar-tab[data-tab=macros]')
     if (document.querySelector('.hidden-macros')==null){
         let folder = document.createElement('ol')
         folder.classList.add('hidden-macros');
         folder.style.display='none';
-        Object.keys(remainingElements).forEach(function(key){
-            console.log(modName+" | Adding "+key+" to hidden-macros");
-            folder.appendChild(remainingElements[key]);  
-        });
         tab.querySelector(prefix+'ol.directory-list').appendChild(folder);   
+    }
+}
+function insertDefaultFolder(prefix,defaultFolder){
+    let allFolders = game.settings.get(mod,'mfolders');
+    for (let folder of document.querySelectorAll('.sidebar-tab[data-tab=macros] ol.directory-list > li.macro-folder')){
+        let folderId = folder.getAttribute('data-mfolder-id');
+        if (allFolders[folderId].titleText > allFolders['default'].titleText){
+            folder.insertAdjacentElement('beforebegin',defaultFolder);
+            return;
+        }
+    }
+}
+function createDefaultFolder(prefix,defaultFolder,hiddenFolder,remainingElements){
+    let tab = document.querySelector(prefix+'.sidebar-tab[data-tab=macros] > ol.directory-list')
+    if (document.querySelector('.macro-folder[data-mfolder-id=default]')==null){
+        let remainingElementsList = []
+        Object.keys(remainingElements).forEach(function(key){
+            if (
+                (hiddenFolder.macroList == null)
+                || (hiddenFolder.macroList != null 
+                    && hiddenFolder.macroList.length==0)
+                || (hiddenFolder.macroList != null
+                    && hiddenFolder.macroList.length>0
+                    && !hiddenFolder.macroList.includes(key))){
+                console.log(modName+" | Adding "+key+" to default folder")
+                remainingElementsList.push(remainingElements[key]);
+            }  
+        });
+        if (remainingElementsList.length>0){
+            let folderObject = createFolderFromObject(tab,defaultFolder,remainingElementsList,prefix,false);
+            insertDefaultFolder(prefix,folderObject);
+        }
     }
 }
 function checkForDeletedMacros(){
     let allFolders = game.settings.get(mod,'mfolders');
     let allMacros = Array.from(game.macros.keys())
+    let defaultFolderExists = false;
     Object.keys(allFolders).forEach(function (key){
         let macrosToRemove = [];
         for (let folderMacro of allFolders[key].macroList){
@@ -225,8 +259,14 @@ function checkForDeletedMacros(){
             let macroIndex = allFolders[key].macroList.indexOf(toRemove);
             allFolders[key].macroList.splice(macroIndex,1);
         }
+        if (key === 'default'){
+            defaultFolderExists = true;
+        }
     });
     if (game.user.isGM){
+        if (!defaultFolderExists){
+            allFolders['default']={'macroList':[],'titleText':'Default','colorText':'#000000','_id':'default'}
+        }
         game.settings.set(mod,'mfolders',allFolders);
     }
     return allFolders;
@@ -251,7 +291,9 @@ function setupFolders(prefix,openFolders){
     if (document.querySelector('.hidden-macros')!=null){
         document.querySelector('.hidden-macros').remove();
     }
-
+    if (document.querySelector('.macro-folder[data-mfolder-id=default]')!=null){
+        document.querySelector('.macro-folder[data-mfolder-id=default]').remove();
+    }
     let allMacroElementsDict = {}
     // Convert existing macros into dict of format { macroName : macroElement }
     // e.g { dnd5e.monsters : <li class ..... > }
@@ -265,7 +307,7 @@ function setupFolders(prefix,openFolders){
     let groupedFolders = {}
     let parentFolders = [];
     Object.keys(allFolders).forEach(function(key) {
-        if (allFolders[key].titleText != 'hidden-macros'){
+        if (key != 'hidden' && key != 'default'){
             let depth = 0;
             if (allFolders[key].pathToFolder == null){
                 depth = 0;
@@ -323,15 +365,21 @@ function setupFolders(prefix,openFolders){
         
     });
     // Create hidden macro folder
+    
+    if (allFolders['hidden']!=null 
+        && allFolders['hidden'].macroList != null 
+        && allFolders['hidden'].macroList.length>0){
+        createHiddenFolder(prefix);
+    }
+    // Create default folder
     // Add any remaining macros to this folder (newly added macros)
     // (prevents adding a macro from breaking everything)
-    if ((allFolders['hidden']!=null 
-        && allFolders['hidden'].macroList != null 
-        && allFolders['hidden'].macroList.length>0)
+    if ((allFolders['default']!=null
+        && allFolders['default'].macroList != null
+        && allFolders['default'].macroList.length>0)
         ||Object.keys(allMacroElementsDict).length>0){
-        createHiddenFolder(prefix,allMacroElementsDict);
+        createDefaultFolder(prefix,allFolders['default'],allFolders['hidden'],allMacroElementsDict)
     }
-
 
     // create folder button
     if (game.user.isGM && document.querySelector(prefix+'#macros button.mfolder-create')==null){
@@ -440,7 +488,7 @@ class MacroFolderMoveDialog extends FormApplication {
         let allFolders = game.settings.get(mod,'mfolders');
 
         Object.keys(allFolders).forEach(function(key){
-            if (key != 'hidden'){
+            if (key != 'hidden' && key != 'default'){
                 let prettyTitle = ""
                 let prettyPath = []
                 if (allFolders[key].pathToFolder != null){
@@ -598,10 +646,11 @@ class MacroFolderEditConfig extends FormApplication {
       let allPacks = this.getGroupedPacks();
       return {
         folder: this.object,
+        defaultFolder:this.object._id==='default',
         amacros: alphaSortMacros(Object.values(allPacks[0])),
         umacros: alphaSortMacros(Object.values(allPacks[1])),
         submitText: game.i18n.localize( this.object.colorText.length>1   ? "FOLDER.Update" : "FOLDER.Create"),
-        deleteText: this.object.colorText.length>1?"Delete Folder":null
+        deleteText: (this.object.colorText.length > 1 && this.object._id != 'default')?"Delete Folder":null
       }
     }
   
@@ -736,8 +785,12 @@ function closeFolder(parent){
     contents.style.display='none'
     if (game.user.isGM){
         cogLink.style.display='none'
-        newFolderLink.style.display='none'
-        moveFolderLink.style.display='none'
+        if (parent.getAttribute('data-mfolder-id')!='default'){
+            newFolderLink.style.display='none'
+        }
+        if (parent.getAttribute('data-mfolder-id')!='default'){
+            moveFolderLink.style.display='none'
+        }
     }
     parent.setAttribute('collapsed','');
 }
@@ -754,8 +807,12 @@ function openFolder(parent){
     contents.style.display=''
     if (game.user.isGM){
         cogLink.style.display=''
-        newFolderLink.style.display=''
-        moveFolderLink.style.display=''
+        if (parent.getAttribute('data-mfolder-id')!='default'){
+            newFolderLink.style.display=''
+        }
+        if (parent.getAttribute('data-mfolder-id')!='default'){
+            moveFolderLink.style.display=''
+        }
     }
     parent.removeAttribute('collapsed');
 }

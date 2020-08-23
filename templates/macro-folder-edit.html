@@ -19,13 +19,23 @@
             <input class="image" type="text" name="icon" placeholder="default folder" value="{{folder.folderIcon}}"/>
         </div>
     </div>
+    {{#if defaultFolder}}
+        <h3 style='margin-bottom:0px;'>This is the default folder</h3>
+    {{/if}}
     <div class="form-group">
         <ul>
-        <li><i>Any marked macro(s) will be included in this folder. </i></li>
-        <li><i>A macro can only belong to one folder.</i></li>
-        <li><i>Marking macros already assigned to other folders will move them here.</i></li>
+        {{#if defaultFolder}}
+            <li><i>Any new compendium(s) will be included in this folder</i></li>
+            <li><i>Compendiums in this folder will show up as Unassigned</i></li>
+        {{else}}
+            <li><i>Any marked macro(s) will be included in this folder. </i></li>
+            <li><i>A macro can only belong to one folder.</i></li>
+            <li><i>Marking macros already assigned to other folders will move them here.</i></li>
+        {{/if}}
         </ul>
-    </div><div class="form-group">
+    </div>
+    {{#unless defaultFolder}}
+    <div class="form-group">
         <div class='form-macro-list'>
             <script>
                 document.querySelector("#folder-create input[name='search-macros']").addEventListener('keyup',function(event){
@@ -59,6 +69,7 @@
             {{/each}}
         </div>
     </div>
+    {{/unless}}
     <div class='flexrow'>
         {{#if deleteText}}
         <input type='hidden' name='delete' id='deleteValue' value=''/>
