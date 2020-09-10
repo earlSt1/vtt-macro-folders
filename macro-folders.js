@@ -997,7 +997,139 @@ function handleSearchForFolders(event,searchTerm){
     }
     
 }
+class SelectFolderConfig extends FormApplication{
+    static get defaultOptions() {
+        const options = super.defaultOptions;
+        options.id = "select-folder";
+        options.template = "modules/macro-folders/templates/select-folder.html";
+        options.width = 500;
+        return options;
+    }
+  
+    get title() {
+        return "Select User Folder"
+    }
+    /**@override */
+    async getData(options){
+        let formData = []
+        let allFolders = game.settings.get(mod,'mfolders');
 
+        Object.keys(allFolders).forEach(function(key){
+            if (key != 'hidden' && key != 'default'){
+                let prettyTitle = ""
+                let prettyPath = []
+                if (allFolders[key].pathToFolder != null){
+                    for (let folder of allFolders[key].pathToFolder){
+                        prettyPath.push(allFolders[folder].titleText);
+                        prettyTitle = prettyTitle+allFolders[folder].titleText+"/";
+                    }
+                }
+                prettyTitle=prettyTitle+allFolders[key].titleText
+                formData.push({
+                    'titleText':allFolders[key].titleText,
+                    'titlePath':prettyPath,
+                    'fullPathTitle':prettyTitle,
+                    'id':key
+                })
+            }
+        });
+        formData.sort(function(first,second){
+            let fullFirst = "";
+            let fullSecond = "";
+            for(let firstPath of first['titlePath']){
+                fullFirst = fullFirst+firstPath+'/'
+            }
+            for (let secondPath of second['titlePath']){
+                fullSecond = fullSecond+secondPath+'/'
+            }
+            fullFirst = fullFirst+first['titleText'];
+            fullSecond = fullSecond+second['titleText'];
+            if (fullFirst < fullSecond){
+                return -1
+            } else if (fullFirst > fullSecond){
+                return 1;
+            }
+            return 0;
+        });
+        if (this.object.pathToFolder != null && this.object.pathToFolder.length>0){
+            formData.splice(0,0,{
+                'titleText':'Root',
+                'titlePath':'Root',
+                'fullPathTitle':'Root',
+                'id':'root'
+            })
+        }
+        let temp = Array.from(formData);
+        for (let obj of temp){
+            if (obj.id!='root' &&(
+                // If formData contains folders which are direct parents of this.object
+                (this.object.pathToFolder != null
+                && this.object.pathToFolder.length>0
+                && obj.id === this.object.pathToFolder[this.object.pathToFolder.length-1])
+                // or If formData contains folders where this.object is directly on the path
+                || (allFolders[obj.id].pathToFolder != null
+                    && allFolders[obj.id].pathToFolder.includes(this.object._id))
+                // or If formData contains this.object
+                || obj.id === this.object._id))
+                formData.splice(formData.indexOf(obj),1);
+            }
+
+        return {
+            folder: this.object,
+            allFolders: formData,
+            existingFolder: game.settings.get(mod,'user-folder-location'),
+            submitText: "Select Folder"
+        }
+    }
+    /** @override */
+    async _updateObject(event, formData) {
+        let destFolderId = null;
+        document.querySelectorAll('#select-user-folder input[type=\'radio\']').forEach(function(e){
+            if (e.checked){
+                destFolderId=e.value;
+                return;} 
+        });
+
+        if (destFolderId != null && destFolderId.length>0){
+            await game.settings.set(mod,'user-folder-location',destFolderId);
+            ui.notifications.notify('User folder updated');
+        }
+    }
+}
+async function createUserFolders(){
+    let userFolderId = game.settings.get(mod,'user-folder-location');
+    if (userFolderId == null || userFolderId.length===0){
+        ui.notifications.error('No user folder defined. Failed to auto-create folders for users')
+        return;
+    }
+    let allFolders = Settings.getFolders();
+
+    let userFolder = allFolders[userFolderId]
+    let existingFolderNames=  []
+    for (let folderId of Object.keys(allFolders)){
+        if (allFolders[folderId].pathToFolder != null
+            && allFolders[folderId].pathToFolder.includes(userFolderId)){
+            existingFolderNames.push(allFolders[folderId].titleText);
+        }
+    }
+    let path = [...userFolder.pathToFolder]
+    path.push(userFolderId);
+    let changed = false;
+    for (let user of game.users.entries){
+        if (!existingFolderNames.includes(user.name)){
+            let folderName = user.name;
+            let folderColor = user.data.color;
+            let folder = new MacroFolder(folderName,folderColor,path)
+            folder.playerDefault=user.id
+            allFolders[folder._id]=folder;
+            console.log(modName+' | New user detected. Creating user folder for '+folderName);   
+            changed = true;
+        }
+        
+    }
+    if (changed)
+        await game.settings.set(mod,'mfolders',allFolders);
+}
 export class Settings{
     static registerSettings(){
         game.settings.registerMenu(mod,'settingsMenu',{
@@ -1006,6 +1138,31 @@ export class Settings{
             icon: 'fas fa-wrench',
             type: ImportExportConfig,
             restricted: true
+        });
+        game.settings.registerMenu(mod, 'user-folder-location-menu', {
+            name: 'User folder location',
+            icon: 'fas fa-folder',
+            label:'Select User Folder',
+            scope: 'world',
+            config: true,
+            restricted: true,
+            type: SelectFolderConfig,
+            default:{}
+        });
+        game.settings.register(mod,'user-folder-location',{
+            scope: 'world',
+            config: false,
+            type: String,
+            default:''
+        })
+        game.settings.register(mod, 'auto-create-user-folders', {
+            name: 'Auto create user folders',
+            hint: 'If enabled, automatically creates a folder in the User Folder for all users, and sets them as default',
+            type: Boolean,
+            scope: 'world',
+            restricted: true,
+            config:true,
+            default:false,
         });
         game.settings.register(mod, 'mfolders', {
             scope: 'world',
@@ -1019,7 +1176,6 @@ export class Settings{
             type: Object,
             default:[]
         });
-        
         if (Object.keys(game.settings.get(mod,'mfolders')).length === 0){
             this.createInitialFolder()
         }
@@ -1077,6 +1233,9 @@ Hooks.on('ready',async function(){
     Hooks.on('renderMacroDirectory',async function(){
 
         await loadTemplates(["modules/macro-folders/macro-folder-edit.html"]);
+        if (game.settings.get(mod,'auto-create-user-folders')){
+            await createUserFolders();
+        }
         setupFolders("")
         addEventListeners()
     });
