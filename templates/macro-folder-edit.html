@@ -19,6 +19,19 @@
             <input class="image" type="text" name="icon" placeholder="default folder" value="{{folder.folderIcon}}"/>
         </div>
     </div>
+    {{#unless defaultFolder}}
+    <div class="form-group">
+        <label>Player Default</label>
+        <div class="flexrow">
+            <select name="player">
+            <option value="none">None</option>
+            {{#each players}}
+                <option value="{{this.id}}">{{this.name}}</option>
+            {{/each}}
+            </select>
+        </div>
+    </div>
+    {{/unless}}
     {{#if defaultFolder}}
         <h3 style='margin-bottom:0px;'>This is the default folder</h3>
     {{/if}}
@@ -49,6 +62,14 @@
                         }
                     }
                 })
+                if (document.querySelector('#folder-create select')!= null){
+                    let d = document.querySelector('#folder-create select[name=\'player\']');
+                    if ('{{folder.playerDefault}}'.length===0){
+                        d.value='none'
+                    }else{
+                        d.value='{{folder.playerDefault}}';
+                    }
+                }
             </script>
             <div class='form-header'>
                 <i class='fas fa-search'></i><input type='text' name='search-macros' placeholder='Search'/>

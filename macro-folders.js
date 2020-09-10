@@ -60,6 +60,7 @@ export class MacroFolder{
         this.uid=generateRandomFolderName();
         this.pathToFolder = path;
         this.icon = null;
+        this.player = null;
     }
     initFromExisting(existing){
         this.title = existing['titleText'];
@@ -69,6 +70,7 @@ export class MacroFolder{
         this.uid = existing['_id'];
         this.path = existing['pathToFolder'];
         this.icon = existing['folderIcon'];
+        this.player = existing['playerDefault']
     }
     get uid(){return this._id;}
     set uid(id){this._id=id;}
@@ -82,6 +84,8 @@ export class MacroFolder{
     set folders(folders){this.folderList = folders;}
     get icon(){return this.folderIcon}
     set icon(nIcon){this.folderIcon=nIcon}
+    get player(){return this.playerDefault}
+    set player(nPlayer){this.playerDefault=nPlayer}
 
     addMacro(macro){
         this.macros.push(macro);
@@ -222,6 +226,33 @@ function createHiddenFolder(prefix){
         tab.querySelector(prefix+'ol.directory-list').appendChild(folder);   
     }
 }
+function moveMacroToNewFolder(macroElement,folderId){
+    document.querySelector('.macro-folder[data-mfolder-id=\''+folderId+'\'] > .folder-contents > .macro-list').appendChild(macroElement);
+}
+async function updateDefaultPlayerMacros(remainingElements){
+    let allFolders = Settings.getFolders();
+    let toDelete = []
+    for (let fKey of Object.keys(allFolders)){
+        if (allFolders[fKey].playerDefault != null){
+            Object.keys(remainingElements).forEach(key => {
+                let mId = remainingElements[key].getAttribute('data-entity-id');
+                let macro = game.macros.get(mId);
+                if (allFolders[fKey].playerDefault===macro.data.author){
+                    console.log(modName+" | Adding "+macro.data.name+" to default player folder for "+game.users.get(macro.data.author).name);
+                    allFolders[fKey].macroList.push(mId);
+                    moveMacroToNewFolder(remainingElements[key],fKey);
+                    toDelete.push(mId);
+                }
+            });
+        }
+    }
+    for (let d of toDelete){
+        delete remainingElements[d];
+    }
+    if (game.user.isGM)
+        await game.settings.set(mod,'mfolders',allFolders);
+    return remainingElements;
+}
 function insertDefaultFolder(prefix,defaultFolder){
     let allFolders = game.settings.get(mod,'mfolders');
     for (let folder of document.querySelectorAll('.sidebar-tab[data-tab=macros] ol.directory-list > li.macro-folder')){
@@ -233,6 +264,7 @@ function insertDefaultFolder(prefix,defaultFolder){
     }
 }
 function createDefaultFolder(prefix,defaultFolder,hiddenFolder,remainingElements){
+
     let tab = document.querySelector(prefix+'.sidebar-tab[data-tab=macros] > ol.directory-list')
     if (document.querySelector('.macro-folder[data-mfolder-id=default]')==null){
         let remainingElementsList = []
@@ -391,6 +423,9 @@ function setupFolders(prefix){
         && allFolders['hidden'].macroList != null 
         && allFolders['hidden'].macroList.length>0){
         createHiddenFolder(prefix);
+    }
+    if (Object.keys(allMacroElementsDict).length>0){
+        updateDefaultPlayerMacros(allMacroElementsDict)
     }
     // Create default folder
     // Add any remaining macros to this folder (newly added macros)
@@ -670,6 +705,7 @@ class MacroFolderEditConfig extends FormApplication {
         defaultFolder:this.object._id==='default',
         amacros: alphaSortMacros(Object.values(allPacks[0])),
         umacros: alphaSortMacros(Object.values(allPacks[1])),
+        players:game.users.entries,
         submitText: game.i18n.localize( this.object.colorText.length>1   ? "FOLDER.Update" : "FOLDER.Create"),
         deleteText: (this.object.colorText.length > 1 && this.object._id != 'default')?"Delete Folder":null
       }
@@ -692,7 +728,9 @@ class MacroFolderEditConfig extends FormApplication {
         }else{
             this.object.folderIcon = null;
         }
-        
+        if (formData.player != null){
+            this.object.playerDefault = formData.player;
+        }
 
         // Update macro assignment
         let macrosToAdd = []
@@ -778,6 +816,21 @@ async function updateFolders(macrosToAdd,macrosToRemove,folder){
     allFolders[folderId].titleText = folder.titleText;
     allFolders[folderId].colorText = folder.colorText;
     allFolders[folderId].folderIcon = folder.folderIcon;
+
+    let updated = false;
+    for (let key of Object.keys(allFolders)){
+        if (allFolders[key].playerDefault === folder.playerDefault
+            && key != folder._id){
+            updated = true;
+            ui.notifications.notify("Changing default folder for player "+game.users.get(folder.playerDefault).name);
+            allFolders[folderId].playerDefault = folder.playerDefault;
+            allFolders[key].playerDefault=null;
+        }
+    }
+    if (!updated && folder.playerDefault!=null && allFolders[folder._id].playerDefault != folder.playerDefault){
+        ui.notifications.notify("Setting default folder for player "+game.users.get(folder.playerDefault).name);
+        allFolders[folderId].playerDefault = folder.playerDefault;
+    }
 
     await game.settings.set(mod,'mfolders',allFolders);
     refreshFolders()
@@ -998,6 +1051,15 @@ export class Settings{
     }
     static getFolders(){
         return game.settings.get(mod,'mfolders');
+    }
+    static getPlayerDefaultFolders(){
+        let toReturn = []
+        let allFolders = game.settings.get(mod,'mfolders');
+        for (let folder of allFolders){
+            if (folder.playerDefault!=null){
+                toReturn.push({'player':folder.playerDefault,'folder':folder});
+            }
+        }
     }
 }
 
