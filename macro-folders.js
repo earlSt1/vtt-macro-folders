@@ -817,19 +817,23 @@ async function updateFolders(macrosToAdd,macrosToRemove,folder){
     allFolders[folderId].colorText = folder.colorText;
     allFolders[folderId].folderIcon = folder.folderIcon;
 
-    let updated = false;
-    for (let key of Object.keys(allFolders)){
-        if (allFolders[key].playerDefault === folder.playerDefault
-            && key != folder._id){
-            updated = true;
-            ui.notifications.notify("Changing default folder for player "+game.users.get(folder.playerDefault).name);
-            allFolders[folderId].playerDefault = folder.playerDefault;
-            allFolders[key].playerDefault=null;
+    if (folder.playerDefault === 'none'){
+        allFolders[folderId].playerDefault = null;
+    }else{
+        let updated = false;
+        for (let key of Object.keys(allFolders)){
+            if (allFolders[key].playerDefault === folder.playerDefault
+                && key != folder._id){
+                updated = true;
+                ui.notifications.notify("Changing default folder for player "+game.users.get(folder.playerDefault).name);
+                allFolders[folderId].playerDefault = folder.playerDefault;
+                allFolders[key].playerDefault=null;
+            }
         }
-    }
-    if (!updated && folder.playerDefault!=null && allFolders[folder._id].playerDefault != folder.playerDefault){
-        ui.notifications.notify("Setting default folder for player "+game.users.get(folder.playerDefault).name);
-        allFolders[folderId].playerDefault = folder.playerDefault;
+        if (!updated && folder.playerDefault!=null && allFolders[folder._id].playerDefault != folder.playerDefault){
+            ui.notifications.notify("Setting default folder for player "+game.users.get(folder.playerDefault).name);
+            allFolders[folderId].playerDefault = folder.playerDefault;
+        }
     }
 
     await game.settings.set(mod,'mfolders',allFolders);
