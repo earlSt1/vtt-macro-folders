@@ -447,7 +447,11 @@ async function setupFolders(prefix){
         let folderIcon = document.createElement('i')
         folderIcon.classList.add('fas','fa-fw','fa-folder')
         button.innerHTML = folderIcon.outerHTML+game.i18n.localize("FOLDER.Create");
-        document.querySelector(prefix+'#macros .directory-footer').appendChild(button);
+        if (game.data.version >= "0.7.5"){
+            document.querySelector(prefix+'#macros .header-actions.action-buttons').appendChild(button);
+        }else{
+            document.querySelector(prefix+'#macros .directory-footer').appendChild(button);
+        }
     }
     // Hide all empty lists
     for (let element of document.querySelectorAll('.folder-contents > ol')){
@@ -993,6 +997,7 @@ function handleSearchForFolders(event,searchTerm){
         }
         if (searchTerm.length==0){
             closeFolder(folder,false);
+            folder.style.display = '';
         }
     }
     
