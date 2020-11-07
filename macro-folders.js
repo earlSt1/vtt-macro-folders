@@ -1233,7 +1233,6 @@ Hooks.on('ready',async function(){
 
     Hooks.on('renderMacroDirectory',async function(){
 
-        await loadTemplates(["modules/macro-folders/macro-folder-edit.html"]);
         // if (game.settings.get(mod,'auto-create-user-folders')){
         //     await createUserFolders();
         // }
