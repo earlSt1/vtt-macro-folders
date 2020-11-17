@@ -1,3 +1,5 @@
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/earlSt1/vtt-macro-folders) ![GitHub issues](https://img.shields.io/github/issues/earlSt1/vtt-macro-folders) ![GitHub all releases](https://img.shields.io/github/downloads/earlSt1/vtt-macro-folders/total)
+
 # Macro Folders
 
 This is a module for FoundryVTT which allows you to manage macros a bit easier by implementing a folder system.
