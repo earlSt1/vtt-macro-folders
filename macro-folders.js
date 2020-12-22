@@ -218,13 +218,19 @@ function createFolderFromObject(parent,macroFolder, macroElements,prefix,isOpen)
 }
 
 
-function createHiddenFolder(prefix){
+function createHiddenFolder(prefix,hiddenElements,allMacroElementsDict){
     let tab = document.querySelector(prefix+'.sidebar-tab[data-tab=macros]')
-    if (document.querySelector('.hidden-macros')==null){
-        let folder = document.createElement('ol')
+    let folder = document.querySelector('.hidden-macros')
+    if (folder==null){
+        folder = document.createElement('ol')
         folder.classList.add('hidden-macros');
         folder.style.display='none';
         tab.querySelector(prefix+'ol.directory-list').appendChild(folder);   
+    }
+    for (let key of hiddenElements){
+        if (allMacroElementsDict[key]!= null){
+            folder.appendChild(allMacroElementsDict[key])
+        }
     }
 }
 function moveMacroToNewFolder(macroElement,folderId){
@@ -423,7 +429,7 @@ async function setupFolders(prefix){
     if (allFolders['hidden']!=null 
         && allFolders['hidden'].macroList != null 
         && allFolders['hidden'].macroList.length>0){
-        createHiddenFolder(prefix);
+        createHiddenFolder(prefix,allFolders['hidden'].macroList,allMacroElementsDict);
     }
     if (Object.keys(allMacroElementsDict).length>0){
         updateDefaultPlayerMacros(allMacroElementsDict)
