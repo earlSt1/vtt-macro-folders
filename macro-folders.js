@@ -250,7 +250,7 @@ async function updateDefaultPlayerMacros(remainingElements){
             Object.keys(remainingElements).forEach(key => {
                 let mId = remainingElements[key].getAttribute('data-entity-id');
                 let macro = game.macros.get(mId);
-                if (allFolders[fKey].playerDefault===macro.data.author){
+                if (macro != null && allFolders[fKey].playerDefault===macro.data.author){
                     console.log(modName+" | Adding "+macro.data.name+" to default player folder for "+game.users.get(macro.data.author).name);
                     allFolders[fKey].macroList.push(mId);
                     moveMacroToNewFolder(remainingElements[key],fKey);
@@ -334,22 +334,22 @@ async function checkForDeletedMacros(){
 * and a list of previously open folders
 */
 async function setupFolders(prefix){
-
+    let macroDirectory = document.querySelector('.sidebar-tab#macros')
     let allFolders = await checkForDeletedMacros();
     let openFolders = game.settings.get(mod,'open-folders');
 
     
-    let allMacroElements = document.querySelectorAll(prefix+'li.macro.directory-item');
+    let allMacroElements = macroDirectory.querySelectorAll(prefix+'li.macro.directory-item');
 
-    for (let existingFolder of document.querySelectorAll('.macro-folder')){
+    for (let existingFolder of macroDirectory.querySelectorAll('.macro-folder')){
         existingFolder.remove();
     }
     //Remove hidden macro (so we can add new stuff to it later if from refresh)
-    if (document.querySelector('.hidden-macros')!=null){
-        document.querySelector('.hidden-macros').remove();
+    if (macroDirectory.querySelector('.hidden-macros')!=null){
+        macroDirectory.querySelector('.hidden-macros').remove();
     }
-    if (document.querySelector('.macro-folder[data-mfolder-id=default]')!=null){
-        document.querySelector('.macro-folder[data-mfolder-id=default]').remove();
+    if (macroDirectory.querySelector('.macro-folder[data-mfolder-id=default]')!=null){
+        macroDirectory.querySelector('.macro-folder[data-mfolder-id=default]').remove();
     }
     let allMacroElementsDict = {}
     // Convert existing macros into dict of format { macroName : macroElement }
@@ -411,10 +411,10 @@ async function setupFolders(prefix){
                 }
             }
             if (game.user.isGM || (!game.user.isGM && (macroElements.length>0 || parentFolders.includes(folder._id)))){
-                let tab = document.querySelector(prefix+'.sidebar-tab[data-tab=macros]')
-                let rootFolder = tab.querySelector(prefix+'ol.directory-list')
+                
+                let rootFolder = macroDirectory.querySelector(prefix+'ol.directory-list')
                 if (depth > 0){
-                    rootFolder = tab.querySelector("li.macro-folder[data-mfolder-id='"+folder.pathToFolder[depth-1]+"'] > .folder-contents > ol.folder-list")
+                    rootFolder = macroDirectory.querySelector("li.macro-folder[data-mfolder-id='"+folder.pathToFolder[depth-1]+"'] > .folder-contents > ol.folder-list")
                 }
                 createFolderFromObject(rootFolder,folder,macroElements,prefix, (openFolders.includes(folder._id)));
             }
@@ -442,7 +442,7 @@ async function setupFolders(prefix){
     }
 
     // create folder button
-    if (game.user.isGM && document.querySelector(prefix+'#macros button.mfolder-create')==null){
+    if (game.user.isGM && macroDirectory.querySelector(prefix+'#macros button.mfolder-create')==null){
         let button = document.createElement('button');
         button.classList.add('mfolder-create')
         button.type='submit';
@@ -451,19 +451,19 @@ async function setupFolders(prefix){
         folderIcon.classList.add('fas','fa-fw','fa-folder')
         button.innerHTML = folderIcon.outerHTML+game.i18n.localize("FOLDER.Create");
         if (game.data.version >= "0.7.5"){
-            document.querySelector(prefix+'#macros .header-actions.action-buttons').appendChild(button);
+            macroDirectory.querySelector(prefix+'#macros .header-actions.action-buttons').appendChild(button);
         }else{
-            document.querySelector(prefix+'#macros .directory-footer').appendChild(button);
+            macroDirectory.querySelector(prefix+'#macros .directory-footer').appendChild(button);
         }
     }
     // Hide all empty lists
-    for (let element of document.querySelectorAll('.folder-contents > ol')){
+    for (let element of macroDirectory.querySelectorAll('.folder-contents > ol')){
         if (element.innerHTML.length===0){
             element.style.display="none";
         }
     }
     if (shouldAddExportButtons()){
-        Hooks.call('addExportButtonsForCF',document.querySelector('.sidebar-tab#macros'))
+        Hooks.call('addExportButtonsForCF',macroDirectory)
     }
 }
 // Delete functions
