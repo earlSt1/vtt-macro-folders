@@ -49,6 +49,12 @@ function alphaSortMacroKeys(keys){
         return 0;
     })
 }
+function shouldAddExportButtons(){
+    let availableCompendium = game.packs.entries.some(e => e.entity === 'Macro' && !e.locked)
+    let correctCFVersion = game.modules.get('compendium-folders') != null && game.modules.get('compendium-folders').data.version >= '2.0.0'
+    let correctFoundryVersion = game.data.version >= '0.7.3'
+    return availableCompendium && correctCFVersion && correctFoundryVersion
+}
 // ==========================
 // Folder object structure
 // ==========================
@@ -456,7 +462,9 @@ async function setupFolders(prefix){
             element.style.display="none";
         }
     }
-   
+    if (shouldAddExportButtons()){
+        Hooks.call('addExportButtonsForCF',document.querySelector('.sidebar-tab#macros'))
+    }
 }
 // Delete functions
 function deleteFolder(folder,allFolders){

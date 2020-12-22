@@ -65,9 +65,10 @@ button.mfolder-submit{
 button.mfolder-submit#delete  {
   background-color:#c51c1c
 }
-.macro-folder-header > .create-folder,.move-folder{
+.macro-folder-header > .create-folder,.move-folder,.export-folder{
   flex:none;
   padding-right:3px;
+  color: #CCC;
 }
 .macro-folder-header > .create-folder {
   padding-right:0px !important;
