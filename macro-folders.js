@@ -331,20 +331,11 @@ async function setupFolders(prefix){
 
     let allFolders = await checkForDeletedMacros();
     let openFolders = game.settings.get(mod,'open-folders');
-    // let allFoldersEntries = game.settings.get(mod,'open-folders')
-    // for (let folder of allFoldersEntries){
-    //     if (folder.isOpen && true){
-    //         //folder open
-    //         openFolders.push(folder._id);
-    //     }
-    // }
+
     
     let allMacroElements = document.querySelectorAll(prefix+'li.macro.directory-item');
 
     for (let existingFolder of document.querySelectorAll('.macro-folder')){
-        // if (!existingFolder.hasAttribute('collapsed')){
-        //     openFolders.push(existingFolder.getAttribute('data-mfolder-id'));
-        // }
         existingFolder.remove();
     }
     //Remove hidden macro (so we can add new stuff to it later if from refresh)
@@ -852,7 +843,7 @@ async function updateFolders(macrosToAdd,macrosToRemove,folder){
 // ==========================
 // Event funtions
 // ==========================
-function closeFolder(parent,save){
+async function closeFolder(parent,save){
     let folderIcon = parent.firstChild.querySelector('h3 > .fa-folder, .fa-folder-open')
     let cogLink = parent.querySelector('a.edit-folder')
     let newFolderLink = parent.querySelector('a.create-folder');
@@ -877,10 +868,10 @@ function closeFolder(parent,save){
     if (save){
         let openFolders = game.settings.get(mod,'open-folders');
         openFolders.splice(openFolders.indexOf(parent.getAttribute('data-mfolder-id')),1);
-        game.settings.set(mod,'open-folders',openFolders).then(() => {return true;});
+        await game.settings.set(mod,'open-folders',openFolders);
     }
 }
-function openFolder(parent,save){
+async function openFolder(parent,save){
     let folderIcon = parent.firstChild.querySelector('h3 > .fa-folder, .fa-folder-open')
     let cogLink = parent.querySelector('a.edit-folder')
     let newFolderLink = parent.querySelector('a.create-folder');
@@ -904,18 +895,18 @@ function openFolder(parent,save){
     if (save){
         let openFolders = game.settings.get(mod,'open-folders');
         openFolders.push(parent.getAttribute('data-mfolder-id'));
-        game.settings.set(mod,'open-folders',openFolders).then(() => {return true;});
+        await game.settings.set(mod,'open-folders',openFolders);
     }
 }
-function toggleFolder(event,parent){
+async function toggleFolder(event,parent){
     event.stopPropagation();
     let success = true;
     if (parent.hasAttribute('collapsed')){
-        success = success && openFolder(parent,true);
+        await openFolder(parent,true);
     }else{
-        success = success && closeFolder(parent,true);
+        await closeFolder(parent,true);
         for (let child of parent.querySelectorAll('.macro-folder')){
-            success = success && closeFolder(child,true);
+            await closeFolder(child,true);
         }
     }
     return success;
@@ -958,6 +949,46 @@ function showMoveDialog(folder,event){
     event.stopPropagation();
     new MacroFolderMoveDialog(folderObject).render(true);
 }
+function setupDragEventListeners(){
+    if (game.user.isGM){
+        let window = document.querySelector('.sidebar-tab#macros')
+        let hiddenMoveField = document.createElement('input');
+        hiddenMoveField.type='hidden'
+        hiddenMoveField.style.display='none';
+        hiddenMoveField.classList.add('macro-to-move');
+        window.querySelector('ol.directory-list').appendChild(hiddenMoveField);
+        
+        for (let macro of window.querySelectorAll('.directory-item.macro')){
+            macro.addEventListener('dragstart',async function(){
+                let currentPack = this.getAttribute('data-entity-id');
+                this.closest('ol.directory-list').querySelector('input.macro-to-move').value = currentPack
+            })
+        }
+        for (let folder of window.querySelectorAll('.macro-folder')){
+            folder.addEventListener('drop',async function(event){
+                event.stopPropagation();
+                let movingId = this.closest('ol.directory-list').querySelector('input.macro-to-move').value;
+                let folderId = this.getAttribute('data-mfolder-id');
+                if (movingId.length>0){
+                    this.closest('ol.directory-list').querySelector('input.macro-to-move').value = ''
+                    let allSettings = game.settings.get(mod,'mfolders');
+                    if (!allSettings[folderId].macroList.includes(movingId) && folderId!='default'){
+                        for (let key of Object.keys(allSettings)){
+                            let currentFolder = allSettings[key];
+                            let mList = currentFolder.macroList;
+                            if (mList.includes(movingId)){
+                                allSettings[key].macroList = mList.filter(c => c != movingId);
+                            }
+                        }
+                        allSettings[folderId].macroList.push(movingId);
+                        await game.settings.set(mod,'mfolders',allSettings)
+                        refreshFolders();
+                    }
+                }
+            });
+        }
+    }
+}
 function addEventListeners(){
     for (let folder of document.querySelectorAll('li.macro-folder')){
         folder.addEventListener('click',function(event){ toggleFolder(event,folder) },false)
@@ -972,6 +1003,7 @@ function addEventListeners(){
     }
     let search = document.querySelector('#macros .directory-header  input')
     search.addEventListener('keyup',function(ev,searchTerm){handleSearchForFolders(ev,search.value)})
+    setupDragEventListeners()
 }
 //Custom function handling if a macro is clicked while inside a folder
 function handleMacroClicked(event,macro){
