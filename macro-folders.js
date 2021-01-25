@@ -268,13 +268,15 @@ async function updateDefaultPlayerMacros(remainingElements){
 }
 function insertDefaultFolder(prefix,defaultFolder){
     let allFolders = game.settings.get(mod,'mfolders');
-    for (let folder of document.querySelectorAll('.sidebar-tab[data-tab=macros] ol.directory-list > li.macro-folder')){
+    let allElements = document.querySelectorAll('.sidebar-tab[data-tab=macros] ol.directory-list > li.macro-folder')
+    for (let folder of allElements){
         let folderId = folder.getAttribute('data-mfolder-id');
         if (allFolders[folderId].titleText > allFolders['default'].titleText){
             folder.insertAdjacentElement('beforebegin',defaultFolder);
             return;
         }
     }
+    allElements[allElements.length - 1].insertAdjacentElement('afterend',defaultFolder);
 }
 function createDefaultFolder(prefix,defaultFolder,hiddenFolder,remainingElements){
 
