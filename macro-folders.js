@@ -691,7 +691,7 @@ export class MacroFolderDirectory extends MacroDirectory{
 let oldP = PermissionControl.prototype._updateObject;
 PermissionControl.prototype._updateObject = async function(event,formData){
     if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
-        oldP.bind(this,event,formData)().then(() => ui.macros.rendered?ui.macros.render(true):null);
+        oldP.bind(this,event,formData)().then(() => ui.macros.render(true));
     }
     else{
         return oldP.bind(this,event,formData)();
@@ -728,7 +728,10 @@ CONFIG.MacroFolder = {entityClass : MacroFolder};
 
 async function initFolders(refresh=false){
     let allFolders = game.settings.get(mod,'mfolders');
-    game.customFolders.macro = null;
+    game.customFolders.macro = {
+        folders:new MacroFolderCollection([]),
+        entries:new Macros([])
+    }
     // let refresh = false;
     let assigned = []
     let toRemove = [];
