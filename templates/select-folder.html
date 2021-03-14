@@ -16,7 +16,7 @@
                         }
                     }
                 })
-                document.querySelector('#select-user-folder input[value=\'{{existingFolder}}\']').setAttribute('checked',true);
+                document.querySelector('#select-user-folder input[value=\'{{existingFolder}}\']')?.setAttribute('checked',true);
             </script>
             <div class='form-header'>
                 <i class='fas fa-search'></i><input type='text' name='search-folders' placeholder='Search'/>

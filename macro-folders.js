@@ -75,7 +75,9 @@ export class MacroFolderCollection extends EntityCollection{
     getPlayerFolder(pId){
         return this.find(f => f.playerDefault === pId)
     }
-    
+    getUserFolder(){
+        return this.find(f => game.settings.get(mod,'user-folder-location') === f._id)
+    }
 }
 export class MacroFolder extends Folder{
     constructor(data={}){
@@ -160,7 +162,7 @@ export class MacroFolder extends Folder{
             await game.settings.set(mod,'mfolders',allFolders)
         }
         game.customFolders.macro.folders.get(this._id).data = duplicate(this.data);
-        if (refresh)
+        if (refresh && ui.macros.rendered)
             ui.macros.render(true);
     }
     async delete(refresh=true, deleteAll=false){
@@ -332,7 +334,8 @@ export class MacroFolderDirectory extends MacroDirectory{
             template: "modules/macro-folders/templates/macro-directory.html",
             title: "Macros",
             dragDrop: [{ dragSelector: ".macro,.macro-folder", dropSelector: ".macro-folder"}],
-            filters: [{inputSelector: 'input[name="search"]', contentSelector: ".directory-list"}]
+            filters: [{inputSelector: 'input[name="search"]', contentSelector: ".directory-list"}],
+            height:'auto'
       });
     }
     constructor(...args) {
@@ -363,6 +366,7 @@ export class MacroFolderDirectory extends MacroDirectory{
         let tree = this.constructor.setupFolders(this.folders, this.entities);
         
         this.tree = this._sortTreeAlphabetically(tree)
+                
     }
     _sortTreeAlphabetically(tree){
         let fn = (a,b) => {
@@ -686,13 +690,8 @@ export class MacroFolderDirectory extends MacroDirectory{
 //MacroFolderDirectory._getEntryContextOptions = MacroDirectory.prototype._getEntryContextOptions;
 let oldP = PermissionControl.prototype._updateObject;
 PermissionControl.prototype._updateObject = async function(event,formData){
-    if (this.entity instanceof Macro){
-        oldP.bind(this,event,formData)().then(() => ui.macros.render(true));
-    }
-    else if (this.entity instanceof MacroFolder){
-        oldP.bind(this,event,formData)().then(() => {
-            ui.macros.render(true)
-        })
+    if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
+        oldP.bind(this,event,formData)().then(() => ui.macros.rendered?ui.macros.render(true):null);
     }
     else{
         return oldP.bind(this,event,formData)();
@@ -706,13 +705,14 @@ MacroConfig.prototype._updateObject = async function(event,formData){
         (authorFolder ? authorFolder._id : 'default');
     let existing = game.customFolders.macro.entries.get(result._id);
     if (existing){
-        game.customFolders.macro.entries.update(result);
+        game.customFolders.macro.entries.set(result._id,result);
     }else{
         await game.customFolders.macro.entries.insert(result);
         await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
     }
     
-    ui.macros.render(true);
+    if (ui.macros.rendered)
+        ui.macros.render(true);
     return formData;
 }
 Object.defineProperty(Macro,"folder",{
@@ -724,12 +724,6 @@ Object.defineProperty(Macro,"folder",{
         this.data.folder = fId;
     }
 });
-// export class MacroFolderPermissionControl extends PermissionControl{
-//     async _updateObject(event, formData){
-
-//     }
-// }
-//MacroFolderDirectory._onDeleteMacro = MacroDirectory.prototype._onDeleteMacro;
 CONFIG.MacroFolder = {entityClass : MacroFolder};
 
 async function initFolders(refresh=false){
@@ -815,23 +809,21 @@ async function initFolders(refresh=false){
         c.parent.removeMacro(c._id,true,false);
         missingMacros = true;
     }
-    if (missingMacros){
-        ui.macros.render(true);
-        return;
-    }
+    
     
     // Set child folders
-    let allEntries = [...MacroFolder.collection.values()]
+    let allEntries = [...game.customFolders.macro.folders.values()]
     for (let mf of allEntries){
         let directChildren = allEntries.filter(f => f.data?.pathToFolder?.length > 0 && f.data.pathToFolder[f.data.pathToFolder.length-1] === mf._id)
         mf.children = directChildren;
     }
-    
+
     if (game.user.isGM)
         game.settings.set(mod,'mfolders',allFolders);
-    if (refresh){
-        await ui.macros.render(true);
-    }
+    // if (refresh){
+    //     await ui.macros.render(true);   
+    // }
+
 }
 export class MacroFolderOld{
     constructor(title,color,path){
@@ -1303,7 +1295,8 @@ class ImportExportConfig extends FormApplication {
                         if (Object.keys(importJson).length===0){
                             //await createInitialFolder();
                             await initFolders(true);
-                            ui.macros.render(true);
+                            if (ui.macros.rendered)
+                                ui.macros.render(true);
                         }
                         await refreshFolders();
                         ui.notifications.info("Folder data imported successfully");
@@ -1539,7 +1532,7 @@ class MacroFolderEditConfig extends FormApplication {
         for (let macroKey of macrosToRemove){
             await this.object.removeMacro(macroKey,false,false);
         }
-        if (this.object.data.parent){
+        if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
             await this.object.moveFolder(this.object.data.parent._id);
         }
         await this.object.save();
@@ -1832,67 +1825,33 @@ class SelectFolderConfig extends FormApplication{
     /**@override */
     async getData(options){
         let formData = []
-        let allFolders = game.settings.get(mod,'mfolders');
-
-        Object.keys(allFolders).forEach(function(key){
-            if (key != 'hidden' && key != 'default'){
-                let prettyTitle = ""
-                let prettyPath = []
-                if (allFolders[key].pathToFolder != null){
-                    for (let folder of allFolders[key].pathToFolder){
-                        prettyPath.push(allFolders[folder].titleText);
-                        prettyTitle = prettyTitle+allFolders[folder].titleText+"/";
-                    }
-                }
-                prettyTitle=prettyTitle+allFolders[key].titleText
+        for (let folder of game.customFolders.macro.folders){
+            if (!folder.isHidden 
+                && !folder.isDefault 
+                && (folder.id != this.object?.parent?.id)
+                && (folder.id != this.object.id)
+                // Folder path does not contain this.object.id
+                && ((!folder.path?.includes(this.object.id) && folder.path.length > 0
+                    || folder.path.length === 0)
+            
+                // Folder is not this
+            )){
                 formData.push({
-                    'titleText':allFolders[key].titleText,
-                    'titlePath':prettyPath,
-                    'fullPathTitle':prettyTitle,
-                    'id':key
+                    'titleText':folder.name,
+                    'fullPathTitle':folder.pathName,
+                    'id':folder.id
                 })
             }
-        });
+        }
+
         formData.sort(function(first,second){
-            let fullFirst = "";
-            let fullSecond = "";
-            for(let firstPath of first['titlePath']){
-                fullFirst = fullFirst+firstPath+'/'
-            }
-            for (let secondPath of second['titlePath']){
-                fullSecond = fullSecond+secondPath+'/'
-            }
-            fullFirst = fullFirst+first['titleText'];
-            fullSecond = fullSecond+second['titleText'];
-            if (fullFirst < fullSecond){
+            if (first.fullPathTitle < second.fullPathTitle){
                 return -1
-            } else if (fullFirst > fullSecond){
+            } else if (first.fullPathTitle > second.fullPathTitle){
                 return 1;
             }
             return 0;
         });
-        if (this.object.pathToFolder != null && this.object.pathToFolder.length>0){
-            formData.splice(0,0,{
-                'titleText':'Root',
-                'titlePath':'Root',
-                'fullPathTitle':'Root',
-                'id':'root'
-            })
-        }
-        let temp = Array.from(formData);
-        for (let obj of temp){
-            if (obj.id!='root' &&(
-                // If formData contains folders which are direct parents of this.object
-                (this.object.pathToFolder != null
-                && this.object.pathToFolder.length>0
-                && obj.id === this.object.pathToFolder[this.object.pathToFolder.length-1])
-                // or If formData contains folders where this.object is directly on the path
-                || (allFolders[obj.id].pathToFolder != null
-                    && allFolders[obj.id].pathToFolder.includes(this.object._id))
-                // or If formData contains this.object
-                || obj.id === this.object._id))
-                formData.splice(formData.indexOf(obj),1);
-            }
 
         return {
             folder: this.object,
@@ -1907,49 +1866,47 @@ class SelectFolderConfig extends FormApplication{
         document.querySelectorAll('#select-user-folder input[type=\'radio\']').forEach(function(e){
             if (e.checked){
                 destFolderId=e.value;
-                return;} 
+                return;
+            } 
         });
 
         if (destFolderId != null && destFolderId.length>0){
             await game.settings.set(mod,'user-folder-location',destFolderId);
             ui.notifications.notify('User folder updated');
         }
+        
+    }
+    
+}
+async function createUserFolders(){
+    let userFolderId = game.settings.get(mod,'user-folder-location');
+    if (userFolderId == null || userFolderId.length===0){
+        ui.notifications.error('No user folder defined. Failed to auto-create folders for users')
+        return;
+    }
+   
+    let userFolder =  game.customFolders.macro.folders.getUserFolder();
+
+    for (let user of game.users.entries){
+        if (!userFolder.children.find(x => x.name === user.name && x.playerDefault === user._id)){
+            let existingDefault = game.customFolders.macro.folders.getPlayerFolder(user._id);
+            if (existingDefault){
+                existingDefault.playerDefault = null;
+               await existingDefault.save(false);
+            }
+            let folderName = user.name;
+            let folderColor = user.data.color;
+            let folder = MacroFolder.create({
+                titleText:folderName,
+                colorText:folderColor,
+                parent:userFolderId
+            })
+            folder.playerDefault=user.id
+            await folder.save();
+            console.log(modName+' | New user detected. Creating user folder for '+folderName);   
+        }
     }
 }
-// async function createUserFolders(){
-//     let userFolderId = game.settings.get(mod,'user-folder-location');
-//     if (userFolderId == null || userFolderId.length===0){
-//         ui.notifications.error('No user folder defined. Failed to auto-create folders for users')
-//         return;
-//     }
-//     let allFolders = Settings.getFolders();
-
-//     let userFolder = allFolders[userFolderId]
-//     let existingFolderNames=  []
-//     for (let folderId of Object.keys(allFolders)){
-//         //if (allFolders[folderId].pathToFolder != null
-//         //    && allFolders[folderId].pathToFolder.includes(userFolderId)){
-//         existingFolderNames.push(allFolders[folderId].titleText);
-//         //}
-//     }
-//     let path = [...userFolder.pathToFolder]
-//     path.push(userFolderId);
-//     let changed = false;
-//     for (let user of game.users.entries){
-//         if (!existingFolderNames.includes(user.name)){
-//             let folderName = user.name;
-//             let folderColor = user.data.color;
-//             let folder = new MacroFolder(folderName,folderColor,path)
-//             folder.playerDefault=user.id
-//             allFolders[folder._id]=folder;
-//             console.log(modName+' | New user detected. Creating user folder for '+folderName);   
-//             changed = true;
-//         }
-        
-//     }
-//     if (changed)
-//         await game.settings.set(mod,'mfolders',allFolders);
-// }
 async function createInitialFolder(){
     if (game.user.isGM){
         let allFolders = game.settings.get(mod,'mfolders');
@@ -1997,31 +1954,37 @@ export class Settings{
             type: ImportExportConfig,
             restricted: true
         });
-        // game.settings.registerMenu(mod, 'user-folder-location-menu', {
-        //     name: 'User folder location',
-        //     icon: 'fas fa-folder',
-        //     label:'Select User Folder',
-        //     scope: 'world',
-        //     config: true,
-        //     restricted: true,
-        //     type: SelectFolderConfig,
-        //     default:{}
-        // });
-        // game.settings.register(mod,'user-folder-location',{
-        //     scope: 'world',
-        //     config: false,
-        //     type: String,
-        //     default:''
-        // })
-        // game.settings.register(mod, 'auto-create-user-folders', {
-        //     name: 'Auto create user folders',
-        //     hint: 'If enabled, automatically creates a folder in the User Folder for all users, and sets them as default',
-        //     type: Boolean,
-        //     scope: 'world',
-        //     restricted: true,
-        //     config:true,
-        //     default:false,
-        // });
+        game.settings.registerMenu(mod, 'user-folder-location-menu', {
+            name: 'User folder location',
+            icon: 'fas fa-folder',
+            label:'Select User Folder',
+            scope: 'world',
+            config: true,
+            restricted: true,
+            type: SelectFolderConfig,
+            default:{}
+        });
+        game.settings.register(mod,'user-folder-location',{
+            scope: 'world',
+            config: false,
+            type: String,
+            default:''
+        })
+        game.settings.register(mod, 'auto-create-user-folders', {
+            name: 'Auto create user folders',
+            hint: 'If enabled, automatically creates a folder in the User Folder for all users, and sets them as default',
+            type: Boolean,
+            scope: 'world',
+            restricted: true,
+            config:true,
+            onChange:async (e) => {
+                if(e){
+                    createUserFolders();
+                    await game.settings.set(mod,'auto-create-user-folders',false);
+                }
+            },
+            default:false
+        });
         game.settings.register(mod, 'mfolders', {
             scope: 'world',
             config: false,
@@ -2047,6 +2010,7 @@ export class Settings{
                 }
             }
         }
+
     }
 }
 
@@ -2062,18 +2026,4 @@ Hooks.on('ready',async function(){
         Hooks.call('addExportButtonsForCF')
     }
     await initFolders(false);
-    Hooks.on('renderMacroFolderDirectory',async function(e){
- 
-        // while (!ui.macro.rendered){
-        //     // wait for old compendium directory to render
-        //     // else we get a race condition
-        //     await new Promise(res => setTimeout(res,500));
-        // }
-       
-        // if (game.settings.get(mod,'auto-create-user-folders')){
-        //     await createUserFolders();
-        // }
-        // await setupFolders("")
-        // addEventListeners()
-    });
 });
