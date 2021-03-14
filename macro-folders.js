@@ -162,7 +162,7 @@ export class MacroFolder extends Folder{
             await game.settings.set(mod,'mfolders',allFolders)
         }
         game.customFolders.macro.folders.get(this._id).data = duplicate(this.data);
-        if (refresh)
+        if (refresh && ui.macros.element.length>0)
             ui.macros.render(true);
     }
     async delete(refresh=true, deleteAll=false){
@@ -188,7 +188,7 @@ export class MacroFolder extends Folder{
         delete allFolders[this.id];
         
         await game.settings.set(mod,'mfolders',allFolders)
-        if (refresh)
+        if (refresh && ui.macros.element.length>0)
             ui.macros.render(true);
         
     }
@@ -499,11 +499,14 @@ export class MacroFolderDirectory extends MacroDirectory{
             Dialog.confirm({
               title: `${game.i18n.localize("SIDEBAR.Delete")} ${entity.name}`,
               content: game.i18n.localize("SIDEBAR.DeleteConfirm"),
-              yes: () => {
-                  entity.delete.bind(entity)().then(() => {
-                    game.customFolders.macro = null;
-                    initFolders(true);
-                  })
+              yes: async () => {
+                await entity.delete.bind(entity)()
+                  
+                game.customFolders.macro = null;
+                initFolders(true);
+                if (ui.macros.element.length>0)
+                    ui.macros.render(true);
+                  
               },
               options: {
                 top: Math.min(li[0].offsetTop, window.innerHeight - 350),
@@ -728,7 +731,10 @@ export class MacroFolderDirectory extends MacroDirectory{
 let oldP = PermissionControl.prototype._updateObject;
 PermissionControl.prototype._updateObject = async function(event,formData){
     if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
-        oldP.bind(this,event,formData)().then(() => ui.macros.render(true));
+        oldP.bind(this,event,formData)().then(() => {
+            if (ui.macros.element.length>0)
+                ui.macros.render(true)
+        });
     }
     else{
         return oldP.bind(this,event,formData)();
@@ -751,7 +757,7 @@ MacroConfig.prototype._updateObject = async function(event,formData){
             await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
         }
         
-        if (ui.macros.rendered)
+        if (ui.macros.element.length>0)
             ui.macros.render(true);
         return formData;
     }
@@ -1339,7 +1345,7 @@ class ImportExportConfig extends FormApplication {
                         if (Object.keys(importJson).length===0){
                             //await createInitialFolder();
                             await initFolders(true);
-                            if (ui.macros.rendered)
+                            if (ui.macros.element.length>0)
                                 ui.macros.render(true);
                         }
                         await refreshFolders();
