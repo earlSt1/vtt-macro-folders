@@ -162,7 +162,7 @@ export class MacroFolder extends Folder{
             await game.settings.set(mod,'mfolders',allFolders)
         }
         game.customFolders.macro.folders.get(this._id).data = duplicate(this.data);
-        if (refresh && ui.macros.rendered)
+        if (refresh)
             ui.macros.render(true);
     }
     async delete(refresh=true, deleteAll=false){
@@ -192,6 +192,29 @@ export class MacroFolder extends Folder{
             ui.macros.render(true);
         
     }
+    async addMacros(macroList,refresh=true){
+        for (let macroId of macroList){
+            let entry = game.customFolders.macro.entries.get(macroId);
+            if (entry){
+                //Move from old entry to new entry
+                let oldParent = game.customFolders.macro.folders.get(entry.data.folder);
+                this._addMacro(entry);
+                if (oldParent && oldParent._id != this._id){
+                    oldParent._removeMacro(entry)
+                    await oldParent.save(false);
+                }
+                game.customFolders.macro.entries.set(macroId,entry)
+            }else{
+                //Create entry and assign to this obj
+                entry = game.macros.get(macroId);
+                entry.data.folder = this._id;
+                game.customFolders.macro.entries.insert(entry);
+                this._addMacro(entry);
+                
+            }
+        }
+        await this.save(refresh);
+    }
     async addMacro(macroId,refresh=true){
         let entry = game.customFolders.macro.entries.get(macroId);
         if (entry){
@@ -212,6 +235,20 @@ export class MacroFolder extends Folder{
             
         }
         //update(entry.data);
+        await this.save(refresh);
+    }
+    async removeMacros(macroList,del=false,refresh=true){
+        for (let macroId of macroList){
+            this._removeMacro(macroId,del);
+            if (del){
+                game.customFolders.macro.entries.remove(macroId);
+            }else{
+                let entry = game.customFolders.macro.entries.get(macroId);
+                let hiddenFolder = this.collection.hidden;
+                hiddenFolder._addMacro(entry);
+                await hiddenFolder.save(false);
+            }
+        }
         await this.save(refresh);
     }
     async removeMacro(macroId,del=false,refresh=true){
@@ -700,20 +737,23 @@ PermissionControl.prototype._updateObject = async function(event,formData){
 let old = MacroConfig.prototype._updateObject;
 MacroConfig.prototype._updateObject = async function(event,formData){
     let result = await old.bind(this,event,formData)()
-    let authorFolder = game.customFolders.macro.folders.getPlayerFolder(result.data.author)
-    result.data.folder = this.object.data.folder ? this.object.data.folder : 
-        (authorFolder ? authorFolder._id : 'default');
-    let existing = game.customFolders.macro.entries.get(result._id);
-    if (existing){
-        game.customFolders.macro.entries.set(result._id,result);
-    }else{
-        await game.customFolders.macro.entries.insert(result);
-        await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
+    if (!event.currentTarget.classList.contains("execute")){
+        
+        let authorFolder = game.customFolders.macro.folders.getPlayerFolder(result.data.author)
+        result.data.folder = this.object.data.folder ? this.object.data.folder : 
+            (authorFolder ? authorFolder._id : 'default');
+        let existing = game.customFolders.macro.entries.get(result._id);
+        if (existing){
+            game.customFolders.macro.entries.set(result._id,result);
+        }else{
+            await game.customFolders.macro.entries.insert(result);
+            await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
+        }
+        
+        if (ui.macros.rendered)
+            ui.macros.render(true);
+        return formData;
     }
-    
-    if (ui.macros.rendered)
-        ui.macros.render(true);
-    return formData;
 }
 Object.defineProperty(Macro,"folder",{
     get: function folder(){
@@ -1519,7 +1559,7 @@ class MacroFolderEditConfig extends FormApplication {
         let macrosToAdd = []
         let macrosToRemove = []
 
-        for (let formEntryId of Object.keys(game.macros)){
+        for (let formEntryId of game.macros.keys()){
             //let formEntryId = entry.collection.replace('.','');
             if (formData[formEntryId] && !this.object?.content?.map(c => c.id)?.includes(formEntryId)){
                 // Box ticked AND macro not in folder
@@ -1529,12 +1569,12 @@ class MacroFolderEditConfig extends FormApplication {
                 macrosToRemove.push(formEntryId);
             }
         }
-        for (let macroKey of macrosToAdd){
-            await this.object.addMacro(macroKey,false);
-        }
-        for (let macroKey of macrosToRemove){
-            await this.object.removeMacro(macroKey,false,false);
-        }
+        if (macrosToAdd.length>0)
+            await this.object.addMacros(macrosToAdd,false);
+        
+        if (macrosToRemove.length>0)
+            await this.object.removeMacros(macrosToRemove,false);
+
         if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
             await this.object.moveFolder(this.object.data.parent._id);
         }
