@@ -644,10 +644,10 @@ export class MacroFolderDirectory extends MacroDirectory{
           const rgx = new RegExp(RegExp.escape(query), "i");
     
           // Match entity names
-          for ( let e of this.entities ) {
+          for ( let e of game.customFolders.macro.entries.entities ) {
             if ( rgx.test(e.name) ) {
               entityIds.add(e.id);
-              if ( e.parent.id ) folderIds.add(e.parent.id);
+              if ( e.data.folder ) folderIds.add(e.data.folder);
             }
           }
     
@@ -668,7 +668,7 @@ export class MacroFolderDirectory extends MacroDirectory{
     
           // Entities
           if (el.classList.contains("entity")) {
-            el.style.display = (!isSearch || entityIds.has(el.dataset.pack)) ? "" : "none";
+            el.style.display = (!isSearch || entityIds.has(el.dataset.entityId)) ? "" : "none";
           }
     
           // Folders
