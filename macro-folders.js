@@ -518,7 +518,7 @@ export class MacroFolderDirectory extends MacroDirectory{
 
             await entity.clone({name: `${entity.name} (Copy)`}).then(async(result) => {
                 result.data.folder = originalEntry.data.folder;
-                await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id);
+                await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id,false);
 
                 await initFolders(true);
             });
@@ -737,8 +737,9 @@ PermissionControl.prototype._updateObject = async function(event,formData){
 let old = MacroConfig.prototype._updateObject;
 MacroConfig.prototype._updateObject = async function(event,formData){
     let result = await old.bind(this,event,formData)()
-    if (!event.currentTarget.classList.contains("execute")){
-        
+    if (!event.submitter.classList.contains("execute")){
+        if (!result || result.length===0)
+            result = game.customFolders.macro.entries.get(this.object._id);
         let authorFolder = game.customFolders.macro.folders.getPlayerFolder(result.data.author)
         result.data.folder = this.object.data.folder ? this.object.data.folder : 
             (authorFolder ? authorFolder._id : 'default');
