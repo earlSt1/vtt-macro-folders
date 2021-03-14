@@ -1,6 +1,9 @@
 /* ----------------------------------------- */
 /*  Folders and Subfolders
 /* ----------------------------------------- */
+.directory-item.macro-folder[data-folder-id="hidden"]{
+  display:none !important;
+}
 li.macro-folder > .macro-folder-header {
   padding: 6px ;
   line-height: 24px;

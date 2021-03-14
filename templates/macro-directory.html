@@ -1,0 +1,68 @@
+{{#*inline "folderPartial"}}
+<li class="directory-item macro-folder folder flexcol {{#unless folder.expanded}}collapsed{{/unless}}"
+    data-folder-id="{{folder._id}}" data-folder-depth="{{folder.depth}}">
+  <header class="folder-header macro-folder-header flexrow" style="background-color: {{folder.color}}">
+    <h3 style="color:{{folder.fontColor}}"><i class="fas fa-folder-open fa-fw"></i>{{folder.name}}</h3>
+    {{#if user.isGM}}
+      {{#unless folder.isDefault}}
+      <a class="create-folder" style="flex:0 0 20px" data-parent-folder="{{folder._id}}"><i class="fas fa-folder-plus fa-fw"></i></a>
+      <a class="create-entity" style="flex:0 0 20px" data-folder="{{folder._id}}"><i class="fas fa-suitcase"></i></a>
+      {{/unless}}
+	{{/if}}
+  </header>
+  <ol class="subdirectory">
+	{{~#each folder.children as |child i|}}
+      {{> folderPartial folder=child user=../user}}
+    {{/each}}
+    {{#each folder.content}}
+      {{> entityPartial}}
+    {{/each}}
+  </ol>
+</li>
+{{/inline}}
+
+{{#*inline "entityPartial"}}
+<li class="directory-item entity macro flexrow" data-entity-id="{{this.data._id}}">
+  <img class="profile" title="{{this.data.name}}" data-src="{{this.data.img}}"/>
+  <h4 class="entity-name"><a>{{this.data.name}}</a></h4>
+</li>
+{{/inline}}
+<section class="sidebar-tab sidebar-directory tab flexcol" id="macro" data-tab="macro">
+    <!-- Directory Header -->
+    <header class="directory-header">
+        <div class="header-actions action-buttons flexrow">
+            {{#if user.isGM }}
+            <button class="create-entity"><i class="fas fa-suitcase"></i> {{localize 'MACRO.Create'}}</button>
+            <button class="create-folder"><i class="fas fa-folder"></i> {{localize 'FOLDER.Create'}}</button>
+            {{/if}}
+        </div>
+        <div class="header-search flexrow">
+            <!--<a class="header-control refresh-directory" title="Refresh"><i class='fa fa-sync'></i></a>-->
+            <i class="fas fa-search"></i>
+            <input type="text" name="search" value="" placeholder="Search Macros" autocomplete="off"/>
+            
+            <a class="header-control collapse-all" title="{{localize 'FOLDER.Collapse'}}"><i class="fas fa-sort-amount-up fa-fw"></i></a>
+            
+        </div>
+    </header>
+
+    <!-- Directories List -->
+	<ol class="directory-list">
+	    {{~#each tree.children as |f fi|}}
+            {{#if f.content.length }}
+                {{> folderPartial folder=f user=../user}}
+            {{else}}
+                {{#unless f.isDefault }}
+                    {{> folderPartial folder=f user=../user}}
+                {{/unless}}
+            {{/if}}
+
+	    {{/each}}
+	    {{#each tree.content}}
+        {{> entityPartial}}
+	    {{/each~}}
+	</ol>
+
+	<!-- Directory Footer -->
+	<footer class="directory-footer"></footer>
+</section>
