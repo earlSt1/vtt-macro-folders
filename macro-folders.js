@@ -397,8 +397,17 @@ export class MacroFolderDirectory extends MacroDirectory{
             this.entities = [...this.constructor.collection];
         }else{
             //TODO
-            this.folders = [...this.constructor.folders].filter(x => x?.content?.find(y => !y?.pack?.private));
-            this.entities = [...this.constructor.collection].filter(z => !z?.pack?.private);
+            this.folders = [...this.constructor.folders].filter(x => x?.content?.find(y => y?.permission > 0) || x.playerDefault === game.userId);
+            let toAdd = [];
+            for (let folder of this.folders){
+                let parent = folder.parent
+                while (parent){
+                    toAdd.push(parent);
+                    parent = parent.parent;
+                }
+            }
+            this.folders = [...new Set(this.folders.concat(toAdd))]
+            this.entities = [...this.constructor.collection].filter(z => z?.permission > 0);
         }
         let tree = this.constructor.setupFolders(this.folders, this.entities);
         
