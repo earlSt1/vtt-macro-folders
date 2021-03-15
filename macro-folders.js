@@ -477,11 +477,11 @@ export class MacroFolderDirectory extends MacroDirectory{
         super.activateListeners(html);
 
         // // Refresh button
-        // html.find('.refresh-directory').click(() => {
-        //     game.customFolders.macro = null;
-        //     initFolders();
-        //     ui.macros.render(true);
-        // })
+        html.find('.refresh-directory').click(() => {
+            game.customFolders.macro = null;
+            initFolders();
+            ui.macros.render(true);
+        })
         // Options below are GM only
         if ( !game.user.isGM ) return;
 
@@ -793,6 +793,22 @@ Object.defineProperty(Macro,"folder",{
 let oldD = Macro.prototype._onDelete;
 Macro.prototype._onDelete = async function(){
     oldD.bind(this)();
+    game.customFolders.macro = null;
+    await initFolders(false);
+    if (ui.macros.element.length>0)
+        ui.macros.render(true);
+}
+let oldC = Macro.prototype._onCreate;
+Macro.prototype._onCreate = async function(data,options,userId){
+    oldC.bind(this)(data,options,userId);
+    game.customFolders.macro = null;
+    await initFolders(false);
+    if (ui.macros.element.length>0)
+        ui.macros.render(true);
+}
+let oldU = Macro.prototype._onUpdate;
+Macro.prototype._onUpdate = async function(data,options,userId){
+    oldU.bind(this)(data,options,userId);
     game.customFolders.macro = null;
     await initFolders(false);
     if (ui.macros.element.length>0)
