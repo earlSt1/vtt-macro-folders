@@ -378,7 +378,11 @@ export class MacroFolderDirectory extends MacroDirectory{
     constructor(...args) {
         super(...args);
     }
-
+    _onDragHighlight(event){
+        if (game.user.isGM){
+            super._onDragHighlight(event);
+        }
+    }
     async checkDeleted(){
         let goneMacros = game.customFolders.macro.entries.filter(x => !game.macros.get(x._id));
         for (let c of goneMacros){
@@ -402,11 +406,12 @@ export class MacroFolderDirectory extends MacroDirectory{
             for (let folder of this.folders){
                 let parent = folder.parent
                 while (parent){
-                    toAdd.push(parent);
+                    if (!this.folders.some(x => x._id === parent._id))
+                        toAdd.push(parent);
                     parent = parent.parent;
                 }
             }
-            this.folders = [...new Set(this.folders.concat(toAdd))]
+            this.folders =this.folders.concat(toAdd)
             this.entities = [...this.constructor.collection].filter(z => z?.permission > 0);
         }
         let tree = this.constructor.setupFolders(this.folders, this.entities);
@@ -499,10 +504,9 @@ export class MacroFolderDirectory extends MacroDirectory{
 
     /** @override */
     _getEntryContextOptions(){
-        if (!game.user.isGM)
-            return;
         let x = MacroDirectory.prototype._getEntryContextOptions().filter(x => x.name != "FOLDER.Clear");
         let i = x.findIndex(c => c.name === "SIDEBAR.Delete");
+
         x[i].callback = async function(li)  {
             const entity = game.macros.get(li.data("entityId"));
             Dialog.confirm({
@@ -632,6 +636,9 @@ export class MacroFolderDirectory extends MacroDirectory{
 
     /** @override */
 	_onDragStart(event) {
+        if (!game.user.isGM)
+            super._onDragStart(event);
+            return;
         let li = event.currentTarget.closest("li");
         const dragData = li.classList.contains("folder") ?
             { type: "Folder", id: li.dataset.folderId, entity: this.constructor.entity } :
@@ -640,6 +647,9 @@ export class MacroFolderDirectory extends MacroDirectory{
         this._dragType = dragData.type;
     }
     _onDrop(event){
+        if (!game.user.isGM)
+            //super._onDrop(event);
+            return;
         event.stopPropagation();
         let li = event.currentTarget.closest("li.folder");
         if (li) li.classList.remove("droptarget");
@@ -780,6 +790,14 @@ Object.defineProperty(Macro,"folder",{
         this.data.folder = fId;
     }
 });
+let oldD = Macro.prototype._onDelete;
+Macro.prototype._onDelete = async function(){
+    oldD.bind(this)();
+    game.customFolders.macro = null;
+    await initFolders(false);
+    if (ui.macros.element.length>0)
+        ui.macros.render(true);
+}
 CONFIG.MacroFolder = {entityClass : MacroFolder};
 
 async function initFolders(refresh=false){
