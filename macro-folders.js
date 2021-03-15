@@ -636,9 +636,10 @@ export class MacroFolderDirectory extends MacroDirectory{
 
     /** @override */
 	_onDragStart(event) {
-        if (!game.user.isGM)
+        if (!game.user.isGM){
             super._onDragStart(event);
             return;
+        }
         let li = event.currentTarget.closest("li");
         const dragData = li.classList.contains("folder") ?
             { type: "Folder", id: li.dataset.folderId, entity: this.constructor.entity } :
@@ -648,7 +649,6 @@ export class MacroFolderDirectory extends MacroDirectory{
     }
     _onDrop(event){
         if (!game.user.isGM)
-            //super._onDrop(event);
             return;
         event.stopPropagation();
         let li = event.currentTarget.closest("li.folder");
