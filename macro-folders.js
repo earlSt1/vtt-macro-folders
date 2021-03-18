@@ -892,8 +892,8 @@ async function initFolders(refresh=false){
             game.customFolders.macro.entries.set(macroId,macroWithFolder)
         }
     }
-    game.customFolders.macro.folders.default.macroList = unassigned.map(y => y._id);
-    game.customFolders.macro.folders.default.content = unassigned;
+    game.customFolders.macro.folders.default.macroList = game.customFolders.macro.folders.default.macroList.concat(unassigned.map(y => y._id));
+    game.customFolders.macro.folders.default.content = game.customFolders.macro.folders.default.macroList.concat(unassigned);
     
     // Check for removed macros
     let missingMacros = false
@@ -1545,7 +1545,7 @@ class MacroFolderEditConfig extends FormApplication {
         let assigned = {};
         let unassigned = {};
         Object.keys(allFolders).forEach(function(key){
-            if (key != 'hidden'){
+            if (key != 'hidden' && key != 'default'){
                 for (let a of allFolders[key].macroList){
                     if (Array.from(game.macros.keys()).includes(a)){
                         assigned[a]=game.macros.get(a);
@@ -2103,7 +2103,6 @@ export class Settings{
                 }
             }
         }
-
     }
 }
 
