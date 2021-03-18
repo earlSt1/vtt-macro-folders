@@ -92,7 +92,6 @@ export class MacroFolder extends Folder{
             parent:null,
             pathToFolder:[],
             macroList:[],
-            macros:[],
             folderIcon:null,
             expanded:false
         },data));
@@ -239,29 +238,24 @@ export class MacroFolder extends Folder{
     }
     async removeMacros(macroList,del=false,refresh=true){
         for (let macroId of macroList){
-            this._removeMacro(macroId,del);
-            if (del){
-                game.customFolders.macro.entries.remove(macroId);
-            }else{
-                let entry = game.customFolders.macro.entries.get(macroId);
-                let hiddenFolder = this.collection.hidden;
-                hiddenFolder._addMacro(entry);
-                await hiddenFolder.save(false);
-            }
+            await this.removeMacroById(macroId,del,refresh);
         }
         await this.save(refresh);
     }
-    async removeMacro(macroId,del=false,refresh=true){
-        this._removeMacro(macroId,del);
+    async removeMacro(macro,del=false,refresh=true){
+        this._removeMacro(macro,del);
         if (del){
-            game.customFolders.macro.entries.remove(macroId);
+            game.customFolders.macro.entries.remove(macro._id);
         }else{
-            let entry = game.customFolders.macro.entries.get(macroId);
+            let entry = game.customFolders.macro.entries.get(macro._id);
             let hiddenFolder = this.collection.hidden;
             hiddenFolder._addMacro(entry);
             await hiddenFolder.save(false);
         }
         await this.save(refresh);
+    }
+    async removeMacroById(macroId,del=false,refresh=true){
+        await this.removeMacro(game.customFolders.macros.entries.get(macroId),del,refresh);
     }
     async moveFolder(destId){
         let destFolder = this.collection.get(destId);
@@ -275,8 +269,9 @@ export class MacroFolder extends Folder{
         macro.data.folder =  this._id;
     }
     _removeMacro(macro,del=false){
+        this.data.macroList = this.data.macroList.filter(x => x != macro._id);
         this.content = this.content.filter(x => x._id != macro._id);
-        this.data.macroList = this.content.map(p => p._id);
+        
         if (del && macro.data.folder)
             macro.data.folder =  null
     }
@@ -386,7 +381,7 @@ export class MacroFolderDirectory extends MacroDirectory{
     async checkDeleted(){
         let goneMacros = game.customFolders.macro.entries.filter(x => !game.macros.get(x._id));
         for (let c of goneMacros){
-            await c.parent.removeMacro(c.code,true,false);
+            await c.parent.removeMacro(c,true,false);
         }
     }
     /** @override */
@@ -834,7 +829,7 @@ async function initFolders(refresh=false){
         allFolders.default._id = 'default';
     }
     let init1 = false;
-    if (Object.keys(allFolders).length <= 2 && allFolders.constructor === Object){
+    if (Object.keys(allFolders).length == 0 && allFolders.constructor === Object){
         // initialize settings
         init1 = true;
         let entityId = {}
@@ -896,12 +891,11 @@ async function initFolders(refresh=false){
     }
     game.customFolders.macro.folders.default.macroList = game.customFolders.macro.folders.default.macroList.concat(unassigned.map(y => y._id));
     game.customFolders.macro.folders.default.content = game.customFolders.macro.folders.default.macroList.concat(unassigned);
-    
     // Check for removed macros
     let missingMacros = false
     let goneMacros = game.customFolders.macro.entries.filter(x => !game.macros.get(x._id));
     for (let c of goneMacros){
-        c.parent.removeMacro(c._id,true,false);
+        c.parent.removeMacro(c,true,false);
         missingMacros = true;
     }
     
@@ -913,8 +907,8 @@ async function initFolders(refresh=false){
         mf.children = directChildren;
     }
 
-    if (game.user.isGM)
-        game.settings.set(mod,'mfolders',allFolders);
+    // if (game.user.isGM)
+    //     game.settings.set(mod,'mfolders',allFolders);
     // if (refresh){
     //     await ui.macros.render(true);   
     // }
@@ -1627,7 +1621,7 @@ class MacroFolderEditConfig extends FormApplication {
         if (macrosToRemove.length>0)
             await this.object.removeMacros(macrosToRemove,false);
 
-        if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
+        if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object.data.parent).children.some(x => x._id === this.object._id)){
             await this.object.moveFolder(this.object.data.parent._id);
         }
         await this.object.save();
