@@ -641,6 +641,8 @@ export class MacroFolderDirectory extends MacroDirectory{
             return;
         }
         let li = event.currentTarget.closest("li");
+        if (li.dataset.folderId == 'default')
+            return;
         const dragData = li.classList.contains("folder") ?
             { type: "Folder", id: li.dataset.folderId, entity: this.constructor.entity } :
             { type: this.constructor.entity, id: li.dataset.entityId };
