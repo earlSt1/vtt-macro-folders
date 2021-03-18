@@ -689,7 +689,7 @@ export class MacroFolderDirectory extends MacroDirectory{
         event.preventDefault();
         event.stopPropagation();
         let parentId = 'default'
-        if (!event.currentTarget.classList.contains('create-macro')){
+        if (event.currentTarget.classList.contains('create-entity')){
             // is a button on folder
             parentId = event.currentTarget.closest('li')?.dataset?.folderId;
         }
@@ -775,8 +775,8 @@ MacroConfig.prototype._updateObject = async function(event,formData){
             game.customFolders.macro.entries.set(result._id,result);
         }else{
             await game.customFolders.macro.entries.insert(result);
-            await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
         }
+        await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
         
         if (ui.macros.element.length>0)
             ui.macros.render(true);
