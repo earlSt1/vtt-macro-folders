@@ -661,7 +661,8 @@ export class MacroFolderDirectory extends MacroDirectory{
 
         if (folderId){
             if (data.type === this.constructor.entity){
-                game.customFolders.macro.folders.get(folderId).addMacro(data.id)
+                if (game.customFolders.macro.entries.get(data.id).folder != folderId)
+                    game.customFolders.macro.folders.get(folderId).addMacro(data.id)
             }else if (data.type === 'Folder'){
                 // Move folder
                 let destFolderId = folderId;
