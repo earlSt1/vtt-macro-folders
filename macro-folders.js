@@ -759,7 +759,7 @@ PermissionControl.prototype._updateObject = async function(event,formData){
 let old = MacroConfig.prototype._updateObject;
 MacroConfig.prototype._updateObject = async function(event,formData){
     let result = await old.bind(this,event,formData)()
-    if (!event.submitter.classList.contains("execute")){
+    if (!event.submitter.classList.contains("execute") && result.data){
         if (!result || result.length===0)
             result = game.customFolders.macro.entries.get(this.object._id);
         let authorFolder = game.customFolders.macro.folders.getPlayerFolder(result.data.author)
