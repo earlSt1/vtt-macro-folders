@@ -127,7 +127,7 @@ export class MacroFolder extends Folder{
             data.macroList = data.macroList.filter(x => game.macros.get(x))
         }
         if (macros){
-            data.macros = macros;
+            data.macros = macros.filter(x => game.macros.get(x._id));
         }else{
             data.macros = []
         }
@@ -255,21 +255,21 @@ export class MacroFolder extends Folder{
         await this.save(refresh);
     }
     async removeMacroById(macroId,del=false,refresh=true){
-        await this.removeMacro(game.customFolders.macros.entries.get(macroId),del,refresh);
+        await this.removeMacro(game.customFolders.macro.entries.get(macroId),del,refresh);
     }
     async moveFolder(destId){
         let destFolder = this.collection.get(destId);
         this._moveToFolder(destFolder);
     }
     _addMacro(macro){
-        if (!this.data.macroList.includes(macro._id)){
+        if (!this.content.some(x => x._id === macro._id)){
             this.content = this.content.concat(macro);
-            this.data.macroList = this.data.macroList.concat(macro._id);
+            //this.data.macroList = this.data.macroList.concat(macro._id);
         }
         macro.data.folder =  this._id;
     }
     _removeMacro(macro,del=false){
-        this.data.macroList = this.data.macroList.filter(x => x != macro._id);
+        //this.data.macroList = this.data.macroList.filter(x => x != macro._id);
         this.content = this.content.filter(x => x._id != macro._id);
         
         if (del && macro.data.folder)
@@ -319,7 +319,7 @@ export class MacroFolder extends Folder{
     get content(){return this.data.macros}
 
     /** @override */
-    set content(c){this.data.macros = c;}
+    set content(c){this.data.macros = c;this.data.macroList = c.map(x => x._id)}
 
     /** @override */
     get children(){return this.data.children}
@@ -878,15 +878,17 @@ async function initFolders(refresh=false){
     for (let macroId of unassigned.map(y => y._id)){
         let playerFolder = game.customFolders.macro.folders.getPlayerFolder(game.macros.get(macroId).data.author)
         let defaultId = playerFolder ? playerFolder._id : 'default'
+
         if (game.customFolders.macro.entries.has(macroId)){
             // Macro has an entry (assigned to default folder) 
-            game.customFolders.macro.entries.get(macroId).data.folder = defaultId;
+            await game.customFolders.macro.folders.get(defaultId).addMacro(macroId);
         }else{
             // Macro does not have an entry (because it is new)
             let macroWithFolder = game.macros.get(macroId);
 
             macroWithFolder.data.folder = defaultId;
             game.customFolders.macro.entries.set(macroId,macroWithFolder)
+            await game.customFolders.macro.folders.get(defaultId).addMacro(macroId);
         }
     }
     game.customFolders.macro.folders.default.macroList = game.customFolders.macro.folders.default.macroList.concat(unassigned.map(y => y._id));
@@ -1621,7 +1623,7 @@ class MacroFolderEditConfig extends FormApplication {
         if (macrosToRemove.length>0)
             await this.object.removeMacros(macrosToRemove,false);
 
-        if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object.data.parent).children.some(x => x._id === this.object._id)){
+        if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
             await this.object.moveFolder(this.object.data.parent._id);
         }
         await this.object.save();
