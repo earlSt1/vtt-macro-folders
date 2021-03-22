@@ -1,10 +1,7 @@
 <form id="import-export" autocomplete="off" onsubmit="event.preventDefault();">
-    <div class='form-group'>
-        <h3>Please close the Macro directory before importing</h3>
-    </div>
     <div class="form-group">
-        <h2>Export</h2>
-        <h2>Import</h2>
+        <h2>{{localize "MF.exportConfig"}}</h2>
+        <h2>{{localize "MF.importConfig"}}</h2>
     </div>
     <script>
         document.querySelector('#import-export .mfolder-copy').addEventListener('click',function(event){
@@ -13,7 +10,7 @@
             exportText.select();
             exportText.setSelectionRange(0, 99999); /*For mobile devices*/          
             document.execCommand("copy");
-            ui.notifications.info("Copied current folder configuration to clipboard!");
+            ui.notifications.info(game.i18n.localize('MF.clipboardNotification'));
         });
     </script>
     <div class="form-group">
@@ -21,7 +18,7 @@
         <textarea name='importData'></textarea>
     </div>
     <div class='flexrow'>    
-        <button class='mfolder-copy' type="reset"><i class="fas fa-clipboard"></i>Copy to Clipboard</button>
+        <button class='mfolder-copy' type="reset"><i class="fas fa-clipboard"></i>{{localize "MF.clipboard"}}</button>
         <button class='mfolder-submit' type="submit"><i class="fas fa-check"></i> {{submitText}}</button>
     </div>
 </form>

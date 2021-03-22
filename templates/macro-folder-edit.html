@@ -13,14 +13,14 @@
         </div>
     </div>
         <div class="form-group">
-        <label>Font Color</label>
+        <label>{{localize "MF.textColor"}}</label>
         <div class="flexrow">
             <input type="text" name="fontColor" value="{{folder.fontColor}}" data-dtype="String"/>
             <input type="color" value="{{folder.fontColor}}" data-edit="fontColor"/>
         </div>
     </div>
     <div class="form-group">
-        <label>Folder Icon</label>
+        <label>{{localize "MF.folderIcon"}}</label>
         <div class="form-fields">
             {{filePicker target="icon" type="image"}}
             <input class="image" type="text" name="icon" placeholder="default folder" value="{{folder.folderIcon}}"/>
@@ -28,10 +28,10 @@
     </div>
     {{#unless defaultFolder}}
     <div class="form-group">
-        <label>Player Default</label>
+        <label>{{localize "MF.playerDefault"}}</label>
         <div class="flexrow">
             <select name="player">
-            <option value="none">None</option>
+            <option value="none">{{localize "MF.playerDefaultNone"}}</option>
             {{#each players}}
                 <option value="{{this.id}}">{{this.name}}</option>
             {{/each}}
@@ -40,18 +40,18 @@
     </div>
     {{/unless}}
     {{#if defaultFolder}}
-        <h3 style='margin-bottom:0px;'>This is the default folder</h3>
+        <h3 style='margin-bottom:0px;'>{{localize "MF.defaultFolderTitle"}}</h3>
     {{/if}}
     <div class="form-group">
         <ul>
-        {{#if defaultFolder}}
-            <li><i>Any new macro(s) will be included in this folder</i></li>
-            <li><i>Macros in this folder will show up as Unassigned</i></li>
-        {{else}}
-            <li><i>Any marked macro(s) will be included in this folder. </i></li>
-            <li><i>A macro can only belong to one folder.</i></li>
-            <li><i>Marking macros already assigned to other folders will move them here.</i></li>
-        {{/if}}
+            {{#if defaultFolder}}
+                <li><i>{{localize "MF.defaultFolderDialogDescriptionL1"}}</i></li>
+                <li><i>{{localize "MF.defaultFolderDialogDescriptionL2"}}</i></li>
+            {{else}}
+                <li><i>{{localize "MF.folderDialogDescriptionL1"}}</i></li>
+                <li><i>{{localize "MF.folderDialogDescriptionL2"}}</i></li>
+                <li><i>{{localize "MF.folderDialogDescriptionL3"}}</i></li>
+            {{/if}}
         </ul>
     </div>
     {{#unless defaultFolder}}
@@ -81,14 +81,14 @@
             <div class='form-header'>
                 <i class='fas fa-search'></i><input type='text' name='search-macros' placeholder='Search'/>
             </div>
-            <h2>Assigned</h2>
+            <h2>{{localize "MF.assigned"}}</h2>
             {{#each amacros}}
                 <div class='flexrow macro-select macro-assigned'>
                     <input type="checkbox" name="{{this.data._id}}" {{#ifInm this.data._id ../folder.macroList}} checked {{/ifInm}}/>
                     <label for="{{this.data._id}}" style='margin-top:2px'>{{this.data.name}}</label>
                 </div>
             {{/each}}
-            <h2>Unassigned</h2>
+            <h2>{{localize "MF.unassigned"}}</h2>
             {{#each umacros}}
                 <div class='flexrow macro-select macro-unassigned'>
                     <input type="checkbox" name="{{this.data._id}}"/>

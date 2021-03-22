@@ -8,7 +8,14 @@
     "compatibleCoreVersion":"0.7.9",
     "esmodules": [
         "./macro-folders.js"
-      ],
+    ],
+    "languages":[
+      {
+        "lang":"en",
+        "name":"English",
+        "path":"lang/en.json"
+      }
+    ],
     "styles": ["./styles.css"],
     "url": "https://github.com/earlSt1/vtt-macro-folders",
     "manifest": "https://raw.githubusercontent.com/earlSt1/vtt-macro-folders/master/module.json",
