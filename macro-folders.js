@@ -92,6 +92,7 @@ export class MacroFolder extends Folder{
             parent:null,
             pathToFolder:[],
             macroList:[],
+            macros:[],
             folderIcon:null,
             expanded:false
         },data));
@@ -165,20 +166,29 @@ export class MacroFolder extends Folder{
             ui.macros.render(true);
     }
     async delete(refresh=true, deleteAll=false){
+        let nextFolder = (this.parent) ? this.parent : this.collection.default;
         if (deleteAll){
             for (let macro of this.content){
                 await Macro.delete(macro._id);
                 game.customFolders.macro.entries.remove(macro._id);
             }
-        }else{
-            let nextFolder = (this.parent) ? this.parent : this.collection.default;
+
+        }else{           
             for (let macro of this.content){
                 await nextFolder.addMacro(macro._id);
             }
-
             if (this.content?.length>0)
                 nextFolder.update(false);
         }
+        
+        for (let child of this.children){
+            if (this.parent){
+                await child.moveFolder(this.parent._id,false);
+            }else{
+                await child.moveToRoot();
+            }
+        }
+
         if (this.collection.get(this.id)){
             this.collection.remove(this.id)
         }
@@ -257,9 +267,15 @@ export class MacroFolder extends Folder{
     async removeMacroById(macroId,del=false,refresh=true){
         await this.removeMacro(game.customFolders.macro.entries.get(macroId),del,refresh);
     }
-    async moveFolder(destId){
+    async moveFolder(destId,updateParent = true){
         let destFolder = this.collection.get(destId);
-        this._moveToFolder(destFolder);
+        this._moveToFolder(destFolder, updateParent);
+    }
+    async moveToRoot(){
+        this.path = []
+        this.parent = null
+        await this._updatePath()
+        await this.save(false);
     }
     _addMacro(macro){
         if (!this.content.some(x => x._id === macro._id)){
@@ -278,10 +294,10 @@ export class MacroFolder extends Folder{
     _removeFolder(child){
         this.children = this.children.filter(c => c.id != child.id);
     }
-    async _moveToFolder(destFolder){
+    async _moveToFolder(destFolder, updateParent=true){
 
         this.path = (destFolder) ? destFolder.path.concat(destFolder.id) : [];
-        if (this.parent){
+        if (this.parent && updateParent){
             this.parent._removeFolder(this);
             this.parent.save(false); 
         }
@@ -289,13 +305,15 @@ export class MacroFolder extends Folder{
             this.parent = destFolder._id;
             this.parent.children = this.parent.children.concat(this);
             this.parent.save(false);
+            this.path = this.parent.path.concat(destFolder._id)
         }else{
             this.parent = null;
+            this.path = [];
         }
         
         await this.save();
         
-        this._updatePath()
+        await this._updatePath()
         ui.macros.render(true);
     }
     // Update path of this and all child folders
@@ -345,7 +363,7 @@ export class MacroFolder extends Folder{
     set path(p){this.data.pathToFolder = p}
     set children(c){this.data.children = c}
     get parent(){return this.collection.get(this.data.parent)}
-    set parent(p){this.data.parent = p}
+    set parent(p){this.data.parent = p;}
     get isDefault(){return this.id === 'default'}
     get isHidden(){return this.id === 'hidden'}
     set expanded(e){this.data.expanded = e}
@@ -656,12 +674,14 @@ export class MacroFolderDirectory extends MacroDirectory{
         }catch(err){
             return;
         }
-
+        if (data.pack){
+            super._onDrop(event);
+        }
         let folderId = li.dataset.folderId;
 
         if (folderId){
             if (data.type === this.constructor.entity){
-                if (game.customFolders.macro.entries.get(data.id).folder != folderId)
+                if (game.customFolders.macro.entries.has(data.id) && game.customFolders.macro.entries.get(data.id).folder != folderId)
                     game.customFolders.macro.folders.get(folderId).addMacro(data.id)
             }else if (data.type === 'Folder'){
                 // Move folder
@@ -748,7 +768,9 @@ export class MacroFolderDirectory extends MacroDirectory{
 let oldP = PermissionControl.prototype._updateObject;
 PermissionControl.prototype._updateObject = async function(event,formData){
     if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
-        oldP.bind(this,event,formData)().then(() => {
+        game.settings.set(mod,'updating',true);
+        oldP.bind(this,event,formData)().then(async () => {
+            await game.settings.set(mod,'updating',false)
             if (ui.macros.element.length>0)
                 ui.macros.render(true)
         });
@@ -791,6 +813,7 @@ Object.defineProperty(Macro,"folder",{
 let oldD = Macro.prototype._onDelete;
 Macro.prototype._onDelete = async function(){
     oldD.bind(this)();
+    if (game.settings.get(mod,'updating')) return;
     game.customFolders.macro = null;
     await initFolders(false);
     if (ui.macros.element.length>0)
@@ -799,6 +822,7 @@ Macro.prototype._onDelete = async function(){
 let oldC = Macro.prototype._onCreate;
 Macro.prototype._onCreate = async function(data,options,userId){
     oldC.bind(this)(data,options,userId);
+    if (game.settings.get(mod,'updating')) return;
     game.customFolders.macro = null;
     await initFolders(false);
     if (ui.macros.element.length>0)
@@ -807,6 +831,7 @@ Macro.prototype._onCreate = async function(data,options,userId){
 let oldU = Macro.prototype._onUpdate;
 Macro.prototype._onUpdate = async function(data,options,userId){
     oldU.bind(this)(data,options,userId);
+    if (game.settings.get(mod,'updating')) return;
     game.customFolders.macro = null;
     await initFolders(false);
     if (ui.macros.element.length>0)
@@ -2088,6 +2113,12 @@ export class Settings{
             config:false,
             type: Object,
             default:[]
+        });
+        game.settings.register(mod,'updating',{
+            scope:'client',
+            config:false,
+            type:Boolean,
+            default:false
         });
         if (game.customFolders){
             game.customFolders.macro = {
