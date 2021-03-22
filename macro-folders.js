@@ -310,8 +310,10 @@ export class MacroFolder extends Folder{
             currentFolder.path = parent.path.concat(parent.id);
             await currentFolder.update(currentFolder.data,false);
         }
-        for (let child of currentFolder.children){
-            child._updatePath(child,currentFolder);
+        if (currentFolder.children){
+            for (let child of currentFolder.children){
+                child._updatePath(child,currentFolder);
+            }
         }
     }
     /** @override */
@@ -349,7 +351,6 @@ export class MacroFolder extends Folder{
     set folderIcon(i){this.data.folderIcon = i}
     get path(){return this.data.pathToFolder}
     set path(p){this.data.pathToFolder = p}
-    set children(c){this.data.children = c}
     get parent(){return this.collection.get(this.data.parent)}
     set parent(p){this.data.parent = p;}
     get isDefault(){return this.id === 'default'}
