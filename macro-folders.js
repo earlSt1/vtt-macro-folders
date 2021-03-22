@@ -581,7 +581,7 @@ export class MacroFolderDirectory extends MacroDirectory{
                     const folder = game.customFolders.macro.folders.get(li.data("folderId"));
                     // TODO 
                     Dialog.confirm({
-                    title: `${game.i18n.localize("FOLDER.Remove")} ${folder.name}`,
+                    title: `${game.i18n.localize("FOLDER.Remove")}: ${folder.name}`,
                     content: game.i18n.localize("FOLDER.RemoveConfirm"),
                     yes: () => folder.delete(),
                     options: {
@@ -600,22 +600,16 @@ export class MacroFolderDirectory extends MacroDirectory{
                 callback: header => {
                     const li = header.parent();
                     const folder = game.customFolders.macro.folders.get(li.data("folderId"));
-                    new Dialog({
-                        title: "Delete Folder: "+folder.name,
-                        content: "<p>Are you sure you want to delete the folder <strong>"+folder.name+"?</strong></p>"
-                                +"<p><i>Macros in this folder <strong>will be deleted</strong></i></p>",
-                        buttons: {
-                            yes: {
-                                icon: '<i class="fas fa-check"></i>',
-                                label: "Yes",
-                                callback: () => folder.delete(true,true)
-                            },
-                            no: {
-                                icon: '<i class="fas fa-times"></i>',
-                                label: "No"
-                            }
+                    Dialog.confirm({
+                        title: `${game.i18n.localize("FOLDER.Delete")}: ${folder.name}`,
+                        content: game.i18n.localize("FOLDER.DeleteConfirm"),
+                        yes: () => folder.delete(true,true),
+                        options: {
+                            top: Math.min(li[0].offsetTop, window.innerHeight - 350),
+                            left: window.innerWidth - 720,
+                            width: 400
                         }
-                    }).render(true);
+                        });
                 }
             },{
                 name: "CF.moveFolder",
