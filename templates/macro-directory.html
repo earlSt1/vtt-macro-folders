@@ -47,7 +47,7 @@
     </header>
 
     <!-- Directories List -->
-	<ol class="directory-list">
+	<ul class="directory-list">
 	    {{~#each tree.children as |f fi|}}
             {{#if f.content.length }}
                 {{> folderPartial folder=f user=../user}}
@@ -61,7 +61,7 @@
 	    {{#each tree.content}}
         {{> entityPartial}}
 	    {{/each~}}
-	</ol>
+	</ul>
 
 	<!-- Directory Footer -->
 	<footer class="directory-footer"></footer>
