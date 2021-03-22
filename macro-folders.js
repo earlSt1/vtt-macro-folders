@@ -269,7 +269,7 @@ export class MacroFolder extends Folder{
     }
     async moveFolder(destId,updateParent = true){
         let destFolder = this.collection.get(destId);
-        this._moveToFolder(destFolder, updateParent);
+        await this._moveToFolder(destFolder, updateParent);
     }
     async moveToRoot(){
         this.path = []
