@@ -2,11 +2,21 @@
 <li class="directory-item macro-folder folder flexcol {{#unless folder.expanded}}collapsed{{/unless}}"
     data-folder-id="{{folder._id}}" data-folder-depth="{{folder.depth}}">
   <header class="folder-header macro-folder-header flexrow" style="background-color: {{folder.color}}">
-    <h3 style="color:{{folder.fontColor}}"><i class="fas fa-folder-open fa-fw"></i>{{folder.name}}</h3>
+
+    {{#if folder.icon}}
+        <img src="{{folder.icon}}" style="height:24px!important;object-fit:scale-down;object-position:left!important;margin-left:0px"/>
+        <h3 style="color:{{folder.fontColor}};margin-left:-23px">
+    {{/if}}
+    
+    {{#unless folder.icon}}
+    <h3 style="color:{{folder.fontColor}}">
+        <i class="fas fa-folder-open fa-fw"></i>
+    {{/unless}}
+    {{folder.name}}</h3>
     {{#if user.isGM}}
       {{#unless folder.isDefault}}
-      <a class="create-folder" style="flex:0 0 20px" data-parent-folder="{{folder._id}}"><i class="fas fa-folder-plus fa-fw"></i></a>
-      <a class="create-entity" style="flex:0 0 20px" data-folder="{{folder._id}}"><i class="fas fa-suitcase"></i></a>
+      <a class="create-folder" style="flex:0 0 20px;color:{{folder.fontColor}}" data-parent-folder="{{folder._id}}"><i class="fas fa-folder-plus fa-fw"></i></a>
+      <a class="create-entity" style="flex:0 0 20px;color:{{folder.fontColor}}" data-folder="{{folder._id}}"><i class="fas fa-suitcase"></i></a>
       {{/unless}}
 	{{/if}}
   </header>

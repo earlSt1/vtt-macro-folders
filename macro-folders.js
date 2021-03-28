@@ -490,17 +490,17 @@ export class MacroFolderDirectory extends MacroDirectory{
         // Create Macro
         html.find('.create-macro').click(this._onCreateEntity.bind(this));
 
-        //Manually set icons in here for now
-        $('#macros .directory-item.folder').each((i,el) => {
-            let li = $(el);
-            let folder = game.customFolders.macro.folders.get(li.data("folderId"));
-            if (folder?.icon){
-                let oldTag = el.querySelector('i');
-                let folderCustomIcon = document.createElement('img');
-                folderCustomIcon.src = folder.icon;
-                oldTag.parentNode.replaceChild(folderCustomIcon,oldTag);
-            }
-        });
+        // //Manually set icons in here for now
+        // $('#macros .directory-item.folder').each((i,el) => {
+        //     let li = $(el);
+        //     let folder = game.customFolders.macro.folders.get(li.data("folderId"));
+        //     if (folder?.icon){
+        //         let oldTag = el.querySelector('i');
+        //         let folderCustomIcon = document.createElement('img');
+        //         folderCustomIcon.src = folder.icon;
+        //         oldTag.parentNode.replaceChild(folderCustomIcon,oldTag);
+        //     }
+        // });
         
     }
 
