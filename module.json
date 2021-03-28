@@ -21,6 +21,12 @@
         "path":"lang/ja.json"
       }
     ],
+    "media":[
+      {
+        "type":"cover",
+        "link":"https://raw.githubusercontent.com/earlSt1/vtt-macro-folders/master/example.PNG"
+      }
+    ],
     "styles": ["./styles.css"],
     "url": "https://github.com/earlSt1/vtt-macro-folders",
     "manifest": "https://raw.githubusercontent.com/earlSt1/vtt-macro-folders/master/module.json",
