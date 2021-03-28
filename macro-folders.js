@@ -1114,28 +1114,29 @@ class MacroFolderEditConfig extends FormApplication {
             }
             this.object.playerDefault = formData.player;
         }
+        if (this.object.data._id != 'default'){
+            let macrosToAdd = []
+            let macrosToRemove = []
 
-        let macrosToAdd = []
-        let macrosToRemove = []
-
-        for (let formEntryId of game.macros.keys()){
-            //let formEntryId = entry.collection.replace('.','');
-            if (formData[formEntryId] && !this.object?.content?.map(c => c.id)?.includes(formEntryId)){
-                // Box ticked AND macro not in folder
-                macrosToAdd.push(formEntryId);
-            }else if (!formData[formEntryId] && this.object?.content?.map(c => c.id)?.includes(formEntryId)){
-                // Box unticked AND macro in folder
-                macrosToRemove.push(formEntryId);
+            for (let formEntryId of game.macros.keys()){
+                //let formEntryId = entry.collection.replace('.','');
+                if (formData[formEntryId] && !this.object?.content?.map(c => c.id)?.includes(formEntryId)){
+                    // Box ticked AND macro not in folder
+                    macrosToAdd.push(formEntryId);
+                }else if (!formData[formEntryId] && this.object?.content?.map(c => c.id)?.includes(formEntryId)){
+                    // Box unticked AND macro in folder
+                    macrosToRemove.push(formEntryId);
+                }
             }
-        }
-        if (macrosToAdd.length>0)
-            await this.object.addMacros(macrosToAdd,false);
-        
-        if (macrosToRemove.length>0)
-            await this.object.removeMacros(macrosToRemove,false);
+            if (macrosToAdd.length>0)
+                await this.object.addMacros(macrosToAdd,false);
+            
+            if (macrosToRemove.length>0)
+                await this.object.removeMacros(macrosToRemove,false);
 
-        if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
-            await this.object.moveFolder(this.object.data.parent._id);
+            if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
+                await this.object.moveFolder(this.object.data.parent._id);
+            }
         }
         await this.object.save();
     }
