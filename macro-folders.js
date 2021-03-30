@@ -1352,6 +1352,7 @@ Hooks.on('ready',async function(){
     await Settings.registerSettings();
     
     ui.macros = new MacroFolderDirectory();
+    game.macros.apps[1] = ui.macros;
     if (shouldAddExportButtons()){
         Hooks.call('addExportButtonsForCF')
     }
