@@ -408,7 +408,7 @@ export class MacroFolderDirectory extends MacroDirectory{
             for (let folder of this.folders){
                 let parent = folder.parent
                 while (parent){
-                    if (!this.folders.some(x => x._id === parent._id))
+                    if (!this.folders.some(x => x._id === parent._id) && !toAdd.some(x => x._id === parent._id))
                         toAdd.push(parent);
                     parent = parent.parent;
                 }
@@ -469,7 +469,7 @@ export class MacroFolderDirectory extends MacroDirectory{
         const data = new MacroFolder();
         if (parent){
             data.path = parent.path.concat(parent.id)
-            data.parent = parent;
+            data.parent = parent._id;
         }
         const options = {top: button.offsetTop, left: window.innerWidth - 310 - FolderConfig.defaultOptions.width};
         new MacroFolderEditConfig(data, options).showDialog(false);
@@ -1134,8 +1134,8 @@ class MacroFolderEditConfig extends FormApplication {
             if (macrosToRemove.length>0)
                 await this.object.removeMacros(macrosToRemove,false);
 
-            if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object._id)){
-                await this.object.moveFolder(this.object.data.parent._id);
+            if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object.data.parent)?.children?.some(x => x._id === this.object._id)){
+                await this.object.moveFolder(this.object.data.parent);
             }
         }
         await this.object.save();
