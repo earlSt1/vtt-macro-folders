@@ -77,18 +77,35 @@
                         d.value='{{folder.playerDefault}}';
                     }
                 }
+                document.querySelector("#folder-create input[name='tick-all-unassigned']").addEventListener('change',function(event){
+                    for (let unassigned of document.querySelectorAll('#folder-create .macro-unassigned > input')){
+                        if (unassigned.parentElement.style.display != 'none')
+                            unassigned.checked = event.target.checked;
+                    }
+                })
+                document.querySelector("#folder-create input[name='tick-all-assigned']").addEventListener('change',function(event){
+                    for (let assigned of document.querySelectorAll('#folder-create .macro-assigned > input')){
+                        if (assigned.parentElement.style.display != 'none')
+                            assigned.checked = event.target.checked;
+                    }
+                })
             </script>
             <div class='form-header'>
                 <i class='fas fa-search'></i><input type='text' name='search-macros' placeholder='Search'/>
             </div>
-            <h2>{{localize "MF.assigned"}}</h2>
+            <div class='flexrow'>
+                <input type="checkbox" name="tick-all-assigned"/><h2> {{localize "MF.assigned"}}</h2>
+            </div>
             {{#each amacros}}
                 <div class='flexrow macro-select macro-assigned'>
                     <input type="checkbox" name="{{this.data._id}}" {{#ifInm this.data._id ../folder.macroList}} checked {{/ifInm}}/>
                     <label for="{{this.data._id}}" style='margin-top:2px'>{{this.data.name}}</label>
                 </div>
             {{/each}}
-            <h2>{{localize "MF.unassigned"}}</h2>
+            <hr>
+            <div class='flexrow'>
+                <input type="checkbox" name="tick-all-unassigned"/><h2> {{localize "MF.unassigned"}}</h2>
+            </div>
             {{#each umacros}}
                 <div class='flexrow macro-select macro-unassigned'>
                     <input type="checkbox" name="{{this.data._id}}"/>

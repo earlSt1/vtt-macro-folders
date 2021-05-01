@@ -764,6 +764,7 @@ PermissionControl.prototype._updateObject = async function(event,formData){
 }
 let old = MacroConfig.prototype._updateObject;
 MacroConfig.prototype._updateObject = async function(event,formData){
+    await game.settings.set(mod,'updating',true);
     let result = await old.bind(this,event,formData)()
     if (event.submitter && !event.submitter.classList.contains("execute") && result.data){
         if (!result || result.length===0)
@@ -777,12 +778,14 @@ MacroConfig.prototype._updateObject = async function(event,formData){
         }else{
             await game.customFolders.macro.entries.insert(result);
         }
-        await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id)
+        await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id,false)
         
         if (ui.macros.element.length>0)
             ui.macros.render(true);
+        await game.settings.set(mod,'updating',false);
         return formData;
     }
+    await game.settings.set(mod,'updating',false);
 }
 Object.defineProperty(Macro,"folder",{
     get: function folder(){
@@ -819,6 +822,15 @@ Macro.prototype._onUpdate = async function(data,options,userId){
     await initFolders(false);
     if (ui.macros.element.length>0)
         ui.macros.render(true);
+}
+let oldImportall = Compendium.prototype.importAll;
+Compendium.prototype.importAll = async function({folderId=null, folderName=""}={}){
+    await game.settings.set(mod,'updating',true);
+    await oldImportall.bind(this)({folderId=null, folderName=""}={});
+    if (this.entity === 'Macro'){
+        await initFolders(false);
+    }
+    await game.settings.set(mod,'updating',false);
 }
 CONFIG.MacroFolder = {entityClass : MacroFolder};
 
@@ -873,8 +885,8 @@ async function initFolders(refresh=false){
             }else{
                 toRemove.push(macroId);
             }
-            if (folder._id != 'default')
-                assigned.push(macroId);
+            //if (folder._id != 'default')
+            assigned.push(macroId);
         }
         let f = MacroFolder.import(folder,macros)
         // refresh flag works like "init" in this case
