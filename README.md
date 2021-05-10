@@ -1,5 +1,6 @@
 # Macro Folders
-<a href='https://ko-fi.com/T6T44L01B' target='_blank'><img height='35' style='border:0px;height:35px;' src='https://cdn.ko-fi.com/cdn/kofi5.png?v=2' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>  ![GitHub release (latest by date)](https://img.shields.io/github/v/release/earlSt1/vtt-macro-folders) ![GitHub issues](https://img.shields.io/github/issues/earlSt1/vtt-macro-folders) ![GitHub all releases](https://img.shields.io/github/downloads/earlSt1/vtt-macro-folders/total) ![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fmacro-folders)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T44L01B)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/earlSt1/vtt-macro-folders) ![GitHub issues](https://img.shields.io/github/issues/earlSt1/vtt-macro-folders) ![GitHub all releases](https://img.shields.io/github/downloads/earlSt1/vtt-macro-folders/total) ![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fmacro-folders)
 
 This is a module for FoundryVTT which allows you to manage macros a bit easier by implementing a folder system.
 
