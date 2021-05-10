@@ -31,4 +31,4 @@ I would recommend once you are happy with your layout, to save your folder confi
 Any issues feel free to ping me on Discord (@Erceron#0370)
 
 ## Contribution
-If you'd like to support my work, feel free to leave a tip through [my paypal](http://paypal.me/cre463)
+If you'd like to support my work, feel free to buy me a coffee at [my kofi](https://ko-fi.com/erceron)
