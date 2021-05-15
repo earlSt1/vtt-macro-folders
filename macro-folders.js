@@ -748,6 +748,7 @@ function libWrapperRegister(){
         await game.settings.set(mod,'updating',true);
         let result = await wrapper(...args);
         let event = [...args][0]
+        let formData = [...args][1]
         if (event.submitter && !event.submitter.classList.contains("execute") && result.data){
             if (!result || result.length===0)
                 result = game.customFolders.macro.entries.get(this.object._id);
