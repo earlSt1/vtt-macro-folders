@@ -770,7 +770,7 @@ function libWrapperRegister(){
         await game.settings.set(mod,'updating',false);
     },'WRAPPER');
 
-    libWrapper.register(mod,'MacroConfig.prototype._onDelete',async function(wrapper, ...args){
+    libWrapper.register(mod,'Macro.prototype._onDelete',async function(wrapper, ...args){
         wrapper(...args);
         if (game.settings.get(mod,'updating')) return;
         game.customFolders.macro = null;
@@ -779,7 +779,7 @@ function libWrapperRegister(){
             ui.macros.render(true);
     },'WRAPPER');
 
-    libWrapper.register(mod,'MacroConfig.prototype._onCreate',async function(wrapper, ...args){
+    libWrapper.register(mod,'Macro.prototype._onCreate',async function(wrapper, ...args){
         wrapper(...args);
         if (game.settings.get(mod,'updating')) return;
         game.customFolders.macro = null;
@@ -788,7 +788,7 @@ function libWrapperRegister(){
             ui.macros.render(true);
     },'WRAPPER');
 
-    libWrapper.register(mod,'MacroConfig.prototype._onUpdate',async function(wrapper, ...args){
+    libWrapper.register(mod,'Macro.prototype._onUpdate',async function(wrapper, ...args){
         wrapper(...args);
         if (game.settings.get(mod,'updating')) return;
         game.customFolders.macro = null;
