@@ -6,18 +6,18 @@ This is a module for FoundryVTT which allows you to manage macros a bit easier b
 ![](./example.PNG)
 
 ## Instructions
-If you have used my other module Compendium Folders, you will be familiar with how this module works.
+If you have used my other module [Compendium Folders](https://github.com/earlSt1/vtt-compendium-folders), you will be familiar with how this module works.
 
 Create a folder using the buttom at the top and start assigning macros to it.
 
 Each folder has 2 icons. Starting from the right
-- The suitcase icon to create a macro in the selected folder
+- The suitcase icon allows you to create a macro in the selected folder
 - The folder icon allows you to create a folder in the selected folder.
 
 Folders now conceal more functionality in context menus, accessible by right clicking the folder. Most of these options are self explanatory
 - In the Edit dialog, you can assign a player to a folder, using the Player Default option. This means any macros created by that user will be placed in this folder. Good for players who like to flood the macro directory with New Macros.
 - Configure Permissions allows you to change the permissions of all macros inside a folder (much like core foundry)
-- Remove folder removes the selected folder, and moves all other macros into the parent folder, or the Default folder if the selected folder doesnt not hvae a parent
+- Remove folder removes the selected folder, and moves all other macros into the parent folder, or the Default folder if the selected folder doesnt not have a parent
 - Delete all will remove the selected folder, and **all folders and macros inside the selected folder**. Use with caution
 
 You can also import and export your folder configuration, to share with others or to backup your folder structure. In the Settings tab under Macro Folders you can find an Import/Export dialog. Pasting someone elses Import string into the import box will seamlessly import their folder structure, ignoring any missing macros.
