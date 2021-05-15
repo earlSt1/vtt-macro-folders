@@ -15,6 +15,7 @@ Each folder has 2 icons. Starting from the right
 - The folder icon allows you to create a folder in the selected folder.
 
 Folders now conceal more functionality in context menus, accessible by right clicking the folder. Most of these options are self explanatory
+- In the Edit dialog, you can assign a player to a folder, using the Player Default option. This means any macros created by that user will be placed in this folder. Good for players who like to flood the macro directory with New Macros.
 - Configure Permissions allows you to change the permissions of all macros inside a folder (much like core foundry)
 - Remove folder removes the selected folder, and moves all other macros into the parent folder, or the Default folder if the selected folder doesnt not hvae a parent
 - Delete all will remove the selected folder, and **all folders and macros inside the selected folder**. Use with caution
