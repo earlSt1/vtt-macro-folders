@@ -1,3 +1,5 @@
+'use strict';
+import {libWrapper} from './shim.js';
 
 const modName = 'Macro Folders';
 const mod = 'macro-folders';
@@ -6,26 +8,12 @@ const FOLDER_LIMIT = 8;
 // ==========================
 // Utility functions
 // ==========================
-function generateRandomFolderName(){
-    return Math.random().toString(36).replace('0.','mfolder_' || '');
-}
 Handlebars.registerHelper('ifInm', function(elem, macros, options) {
     if(macros.indexOf(elem) > -1) {
       return options.fn(this);
     }
     return options.inverse(this);
 });
-function alphaSortFolders(folders){
-    return folders.sort(function(first,second){
-        if (first['titleText']<second['titleText']){
-            return -1;
-        }
-        if ( first['titleText'] > second['titleText']){
-          return 1;
-        }
-        return 0;
-    })
-}
 function alphaSortMacros(macros){
     return macros.sort(function(first,second){
         let firstName = first.data.name;
@@ -625,10 +613,6 @@ export class MacroFolderDirectory extends MacroDirectory{
             }
         ]
     }
-    // _contextMenu(html){
-    //     super._contextMenu(html);
-    //     //MacroDirectory.prototype._contextMenu(html);
-    // }
 
     /** @override */
 	_onDragStart(event) {
@@ -746,26 +730,23 @@ export class MacroFolderDirectory extends MacroDirectory{
       }
 
 }
-// extend _getEntryContextOptions()
-//MacroFolderDirectory._getEntryContextOptions = MacroDirectory.prototype._getEntryContextOptions;
-let oldP = PermissionControl.prototype._updateObject;
-PermissionControl.prototype._updateObject = async function(event,formData){
+libWrapper.register(mod,'PermissionControl.prototype._updateObject',async function(wrapper, ...args){
     if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
         game.settings.set(mod,'updating',true);
-        oldP.bind(this,event,formData)().then(async () => {
+        wrapper(...args).then(async () => {
             await game.settings.set(mod,'updating',false)
             if (ui.macros.element.length>0)
                 ui.macros.render(true)
         });
     }
     else{
-        return oldP.bind(this,event,formData)();
+        return wrapper(...args);
     }
-}
-let old = MacroConfig.prototype._updateObject;
-MacroConfig.prototype._updateObject = async function(event,formData){
+},'WRAPPER');
+libWrapper.register(mod,'MacroConfig.prototype._updateObject',async function(wrapper, ...args){
     await game.settings.set(mod,'updating',true);
-    let result = await old.bind(this,event,formData)()
+    let result = await wrapper(...args);
+    let event = [...args][0]
     if (event.submitter && !event.submitter.classList.contains("execute") && result.data){
         if (!result || result.length===0)
             result = game.customFolders.macro.entries.get(this.object._id);
@@ -786,7 +767,44 @@ MacroConfig.prototype._updateObject = async function(event,formData){
         return formData;
     }
     await game.settings.set(mod,'updating',false);
-}
+},'WRAPPER');
+
+libWrapper.register(mod,'MacroConfig.prototype._onDelete',async function(wrapper, ...args){
+    wrapper(...args);
+    if (game.settings.get(mod,'updating')) return;
+    game.customFolders.macro = null;
+    await initFolders(false);
+    if (ui.macros.element.length>0)
+        ui.macros.render(true);
+},'WRAPPER');
+
+libWrapper.register(mod,'MacroConfig.prototype._onCreate',async function(wrapper, ...args){
+    wrapper(...args);
+    if (game.settings.get(mod,'updating')) return;
+    game.customFolders.macro = null;
+    await initFolders(false);
+    if (ui.macros.element.length>0)
+        ui.macros.render(true);
+},'WRAPPER');
+
+libWrapper.register(mod,'MacroConfig.prototype._onUpdate',async function(wrapper, ...args){
+    wrapper(...args);
+    if (game.settings.get(mod,'updating')) return;
+    game.customFolders.macro = null;
+    await initFolders(false);
+    if (ui.macros.element.length>0)
+        ui.macros.render(true);
+},'WRAPPER');
+
+libWrapper.register(mod,'Compendium.prototype.importAll',async function(wrapper, ...args){
+    await game.settings.set(mod,'updating',true);
+    await wrapper({folderId=null, folderName=""}={});
+    if (this.entity === 'Macro'){
+        await initFolders(false);
+    }
+    await game.settings.set(mod,'updating',false);
+},'WRAPPER');
+
 Object.defineProperty(Macro,"folder",{
     get: function folder(){
         if ( !this.data.folder ) return null;
@@ -796,42 +814,6 @@ Object.defineProperty(Macro,"folder",{
         this.data.folder = fId;
     }
 });
-let oldD = Macro.prototype._onDelete;
-Macro.prototype._onDelete = async function(){
-    oldD.bind(this)();
-    if (game.settings.get(mod,'updating')) return;
-    game.customFolders.macro = null;
-    await initFolders(false);
-    if (ui.macros.element.length>0)
-        ui.macros.render(true);
-}
-let oldC = Macro.prototype._onCreate;
-Macro.prototype._onCreate = async function(data,options,userId){
-    oldC.bind(this)(data,options,userId);
-    if (game.settings.get(mod,'updating')) return;
-    game.customFolders.macro = null;
-    await initFolders(false);
-    if (ui.macros.element.length>0)
-        ui.macros.render(true);
-}
-let oldU = Macro.prototype._onUpdate;
-Macro.prototype._onUpdate = async function(data,options,userId){
-    oldU.bind(this)(data,options,userId);
-    if (game.settings.get(mod,'updating')) return;
-    game.customFolders.macro = null;
-    await initFolders(false);
-    if (ui.macros.element.length>0)
-        ui.macros.render(true);
-}
-let oldImportall = Compendium.prototype.importAll;
-Compendium.prototype.importAll = async function({folderId=null, folderName=""}={}){
-    await game.settings.set(mod,'updating',true);
-    await oldImportall.bind(this)({folderId=null, folderName=""}={});
-    if (this.entity === 'Macro'){
-        await initFolders(false);
-    }
-    await game.settings.set(mod,'updating',false);
-}
 CONFIG.MacroFolder = {entityClass : MacroFolder};
 
 async function initFolders(refresh=false){
