@@ -1,5 +1,5 @@
 # Macro Folders
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/earlSt1/vtt-macro-folders) ![GitHub issues](https://img.shields.io/github/issues/earlSt1/vtt-macro-folders) ![GitHub all releases](https://img.shields.io/github/downloads/earlSt1/vtt-macro-folders/total) ![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fmacro-folders)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/earlSt1/vtt-macro-folders) ![GitHub issues](https://img.shields.io/github/issues/earlSt1/vtt-macro-folders) ![GitHub all releases](https://img.shields.io/github/downloads/earlSt1/vtt-macro-folders/total) ![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fmacro-folders) [![Buy me a coffee](https://img.shields.io/badge/-buy%20me%20a%20coffee-%23334dae?logo=Ko-fi&amp;logoColor=white)](https://ko-fi.com/erceron) 
 
 This is a module for FoundryVTT which allows you to manage macros a bit easier by implementing a folder system.
 
@@ -31,4 +31,4 @@ I would recommend once you are happy with your layout, to save your folder confi
 Any issues feel free to ping me on Discord (@Erceron#0370)
 
 ## Contribution
-If you'd like to support my work, feel free to leave a tip through [my paypal](http://paypal.me/cre463)
+If you'd like to support my work, feel free to buy me a coffee at [my kofi](https://ko-fi.com/erceron)
