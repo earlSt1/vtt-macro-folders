@@ -98,8 +98,8 @@
             </div>
             {{#each amacros}}
                 <div class='flexrow macro-select macro-assigned'>
-                    <input type="checkbox" name="{{this.data._id}}" {{#ifInm this.data._id ../folder.macroList}} checked {{/ifInm}}/>
-                    <label for="{{this.data._id}}" style='margin-top:2px'>{{this.data.name}}</label>
+                    <input type="checkbox" name="{{this.id}}" {{#ifInm this.id ../folder.macroList}} checked {{/ifInm}}/>
+                    <label for="{{this.id}}" style='margin-top:2px'>{{this.data.name}}</label>
                 </div>
             {{/each}}
             <hr>
@@ -108,8 +108,8 @@
             </div>
             {{#each umacros}}
                 <div class='flexrow macro-select macro-unassigned'>
-                    <input type="checkbox" name="{{this.data._id}}"/>
-                    <label for="{{this.data._id}}" style='margin-top:2px;color:#666;'><i>{{this.data.name}}</i></label>
+                    <input type="checkbox" name="{{this.id}}"/>
+                    <label for="{{this.id}}" style='margin-top:2px;color:#666;'><i>{{this.data.name}}</i></label>
                 </div>
             {{/each}}
         </div>

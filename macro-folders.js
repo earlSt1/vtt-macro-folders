@@ -28,7 +28,7 @@ function alphaSortMacros(macros){
     });
 }
 function shouldAddExportButtons(){
-    let availableCompendium = game.packs.entries.some(e => e.entity === 'Macro' && !e.locked)
+    let availableCompendium = game.packs.contents.some(e => e.documentClass.documentName === 'Macro' && !e.locked)
     let correctCFVersion = game.modules.get('compendium-folders') != null && game.modules.get('compendium-folders').data.version >= '2.0.0'
     let correctFoundryVersion = game.data.version >= '0.7.3'
     return availableCompendium && correctCFVersion && correctFoundryVersion
@@ -36,708 +36,744 @@ function shouldAddExportButtons(){
 // ==========================
 // Folder object structure
 // ==========================
-export class MacroFolderCollection extends EntityCollection{
-    constructor(...args) {
-        super(...args);
-    }
-    /** @override */
-    get entity() {
-        return "MacroFolder";
-    }
-    get hidden(){
-        return this.find(f => f.isHidden);
-    }
-    get default(){
-        return this.find(f => f.isDefault);
-    }
-    getPlayerFolder(pId){
-        return this.find(f => f.playerDefault === pId)
-    }
-    getUserFolder(){
-        return this.find(f => game.settings.get(mod,'user-folder-location') === f._id)
-    }
-}
-export class MacroFolder extends Folder{
-    constructor(data={}){
-        super(mergeObject({
-            titleText:'New Folder',
-            colorText:'#000000',
-            fontColorText:'#FFFFFF',
-            type:"Macro",
-            _id:'mfolder_'+randomID(10),
-            entity:"MacroFolder",
-            sorting:'a',
-            parent:null,
-            pathToFolder:[],
-            macroList:[],
-            macros:[],
-            folderIcon:null,
-            expanded:false
-        },data));
-    }
-    _getSaveData(){
-        let data = duplicate(this.data);
-        delete data.macros;
-        delete data.content;
-        delete data.children;
-        return data;
-    }
-    /** @override */
-    static create(data={}){
-        let newFolder = new MacroFolder(data);
-        if (!game.customFolders){
-            game.customFolders = new Map();
+function defineClasses(){
+    class MacroEntryCollection extends WorldCollection{
+        constructor(...args) {
+            super(...args);
         }
-        if (!game.customFolders.macro){
-            game.customFolders.macro = {
-                folders:new MacroFolderCollection([]),
-                entries:new Macros([])
+        
+        get documentClass(){
+            return game.MF.MacroEntry;
+        }
+    }
+    class MacroEntry{
+        constructor(data={}){
+            this.data = foundry.utils.mergeObject({},data);
+        }
+        get folder(){
+            return game.customFolders.macro.folders.get(this.data.folder)
+        }
+        set folder(fId){
+            this.data.folder = fId;
+        }
+        get macro(){
+            return game.macros.get(this.id);
+        }
+        get id(){
+            return this.data._id;
+        }
+        get permissions(){
+            return this.data.permissions;
+        }
+        toJSON(){
+            return this.data;
+        }
+        get visible(){
+            return this.macro.visible;
+        }
+        get name(){
+            return this.data.name
+        }
+        get sheet(){
+            return this.macro.sheet;
+        }
+    }
+    class MacroFolderCollection extends WorldCollection{
+        constructor(...args) {
+            super(...args);
+        }
+        get hidden(){
+            return this.find(f => f.isHidden);
+        }
+        get default(){
+            return this.find(f => f.isDefault);
+        }
+        getPlayerFolder(pId){
+            return this.find(f => f.playerDefault === pId)
+        }
+        getUserFolder(){
+            return this.find(f => game.settings.get(mod,'user-folder-location') === f.id)
+        }
+        get documentClass(){
+            return game.MF.MacroFolder;
+        }
+    }
+    class MacroFolder {
+        constructor(data={}){
+            this.data = foundry.utils.mergeObject({
+                titleText:'New Folder',
+                colorText:'#000000',
+                fontColorText:'#FFFFFF',
+                type:"Macro",
+                _id:'mfolder_'+randomID(10),
+                entity:"MacroFolder",
+                sorting:'a',
+                parent:null,
+                pathToFolder:[],
+                macroList:[],
+                macros:[],
+                folderIcon:null,
+                expanded:false,
+                visible:true,
+                children:[]
+            },data);
+        }
+        _getSaveData(){
+            let data = duplicate(this.data);
+            delete data.macros;
+            delete data.content;
+            delete data.children;
+            return data;
+        }
+        /** @override */
+        static create(data={}){
+            let newFolder = new MacroFolder(data);
+            if (!game.customFolders){
+                game.customFolders = new Map();
+            }
+            if (!game.customFolders.macro){
+                game.customFolders.macro = {
+                    folders:new game.MF.MacroFolderCollection([]),
+                    entries:new game.MF.MacroEntryCollection([])
+                }
+            }
+            game.customFolders.macro.folders.set(newFolder.id,newFolder);
+
+            return newFolder;
+        }
+        static import(data={},macros){
+            if (data?.pathToFolder?.length > 0){
+                data.parent = data.pathToFolder[data.pathToFolder.length-1];
+            }
+            if (macros){
+                data.macros = macros;
+            }else{
+                data.macros = []
+            }
+            // Set open state
+            data.expanded = game.settings.get(mod,'open-folders').includes(data.id)
+
+            return MacroFolder.create(data);
+        }
+        // Update using data
+        async update(data=this.data,refresh=true){
+            this.data = foundry.utils.mergeObject(data,this.data)
+            // Update game folder
+            this.collection.get(this.id).data = this.data;
+            await this.save(refresh);
+        }
+        // Save object state to game.customFolders and settings
+        async save(refresh=true){
+            if (!this.collection.get(this.id)){
+                this.collection.set(this.id,this);
+            }
+            if (game.user.isGM){
+                let allFolders = game.settings.get(mod,'mfolders')
+                let currentFolder = allFolders[this.id];
+                if (!currentFolder){
+                    // create folder
+                    allFolders[this.id] = this._getSaveData();
+                }else{
+                    allFolders[this.id] = foundry.utils.mergeObject(currentFolder,this._getSaveData());
+                }
+                await game.settings.set(mod,'mfolders',allFolders)
+            }
+            game.customFolders.macro.folders.get(this.id).data = duplicate(this.data);
+            if (refresh && ui.macros.element.length>0){
+                ui.macros.renderPopout(true);
             }
         }
-        game.customFolders.macro.folders.insert(newFolder);
+        async delete(refresh=true, deleteAll=false){
+            let nextFolder = (this.parent) ? this.parent : this.collection.default;
+            if (deleteAll){
+                for (let macro of this.content){
+                    await Macro.delete(macro.id);
+                    game.customFolders.macro.entries.remove(macro.id);
+                }
 
-        return newFolder;
-    }
-    static import(data={},macros){
-        if (data?.pathToFolder?.length > 0){
-            data.parent = data.pathToFolder[data.pathToFolder.length-1];
-        }
-        if (data.macroList){
-            data.macroList = data.macroList.filter(x => game.macros.get(x))
-        }
-        if (macros){
-            data.macros = macros.filter(x => game.macros.get(x._id));
-        }else{
-            data.macros = []
-        }
-        // Set open state
-        data.expanded = game.settings.get(mod,'open-folders').includes(data._id)
+            }else{           
+                for (let macro of this.content){
+                    await nextFolder.addMacro(macro.id);
+                }
+                if (this.content?.length>0)
+                    nextFolder.update(false);
+            }
+            
+            for (let child of this.children){
+                if (this.parent){
+                    await child.moveFolder(this.parent.id,false);
+                }else{
+                    await child.moveToRoot();
+                }
+            }
 
-        return MacroFolder.create(data);
-    }
-    // Update using data
-    async update(data=this.data,refresh=true){
-        this.data = mergeObject(data,this.data)
-        // Update game folder
-        this.collection.get(this.id).data = this.data;
-        await this.save(refresh);
-    }
-    // Save object state to game.customFolders and settings
-    async save(refresh=true){
-        if (!this.collection.get(this.id)){
-            this.collection.insert(this);
-        }
-        if (game.user.isGM){
+            if (this.collection.get(this.id)){
+                this.collection.remove(this.id)
+            }
             let allFolders = game.settings.get(mod,'mfolders')
-            let currentFolder = allFolders[this.id];
-            if (!currentFolder){
-                // create folder
-                allFolders[this.id] = this._getSaveData();
-                
-            }else{
-                allFolders[this.id] = mergeObject(currentFolder,this._getSaveData());
-            }
+            
+            delete allFolders[this.id];
+            
             await game.settings.set(mod,'mfolders',allFolders)
+            if (refresh && ui.macros.element.length>0)
+                ui.macros.renderPopout(true);
+            
         }
-        game.customFolders.macro.folders.get(this._id).data = duplicate(this.data);
-        if (refresh && ui.macros.element.length>0)
-            ui.macros.render(true);
-    }
-    async delete(refresh=true, deleteAll=false){
-        let nextFolder = (this.parent) ? this.parent : this.collection.default;
-        if (deleteAll){
-            for (let macro of this.content){
-                await Macro.delete(macro._id);
-                game.customFolders.macro.entries.remove(macro._id);
+        async addMacros(macroList,refresh=true){
+            for (let macroId of macroList){
+                let entry = game.customFolders.macro.entries.get(macroId);
+                if (entry){
+                    //Move from old entry to new entry
+                    let oldParent = game.customFolders.macro.folders.get(entry.data.folder);
+                    this._addMacro(entry);
+                    if (oldParent && oldParent.id != this.id){
+                        oldParent._removeMacro(entry)
+                        await oldParent.save(false);
+                    }
+                    game.customFolders.macro.entries.set(macroId,entry)
+                }else{
+                    //Create entry and assign to this obj
+                    entry = new game.MF.MacroEntry(game.macros.get(macroId).data);
+                    entry.folder = this.id;
+                    game.customFolders.macro.entries.set(macroId,entry);
+                    this._addMacro(entry);
+                    
+                }
             }
-
-        }else{           
-            for (let macro of this.content){
-                await nextFolder.addMacro(macro._id);
-            }
-            if (this.content?.length>0)
-                nextFolder.update(false);
+            await this.save(refresh);
         }
-        
-        for (let child of this.children){
-            if (this.parent){
-                await child.moveFolder(this.parent._id,false);
-            }else{
-                await child.moveToRoot();
-            }
-        }
-
-        if (this.collection.get(this.id)){
-            this.collection.remove(this.id)
-        }
-        let allFolders = game.settings.get(mod,'mfolders')
-        
-        delete allFolders[this.id];
-        
-        await game.settings.set(mod,'mfolders',allFolders)
-        if (refresh && ui.macros.element.length>0)
-            ui.macros.render(true);
-        
-    }
-    async addMacros(macroList,refresh=true){
-        for (let macroId of macroList){
+        async addMacro(macroId,refresh=true){
             let entry = game.customFolders.macro.entries.get(macroId);
             if (entry){
                 //Move from old entry to new entry
                 let oldParent = game.customFolders.macro.folders.get(entry.data.folder);
                 this._addMacro(entry);
-                if (oldParent && oldParent._id != this._id){
+                if (oldParent && oldParent.id != this.id){
                     oldParent._removeMacro(entry)
                     await oldParent.save(false);
                 }
                 game.customFolders.macro.entries.set(macroId,entry)
             }else{
                 //Create entry and assign to this obj
-                entry = game.macros.get(macroId);
-                entry.data.folder = this._id;
-                game.customFolders.macro.entries.insert(entry);
+                entry = new game.MF.MacroEntry(game.macros.get(macroId).data);
+                entry.folder = this.id;
+                game.customFolders.macro.entries.set(macroId,entry);
                 this._addMacro(entry);
                 
             }
+            //update(entry.data);
+            await this.save(refresh);
         }
-        await this.save(refresh);
-    }
-    async addMacro(macroId,refresh=true){
-        let entry = game.customFolders.macro.entries.get(macroId);
-        if (entry){
-            //Move from old entry to new entry
-            let oldParent = game.customFolders.macro.folders.get(entry.data.folder);
-            this._addMacro(entry);
-            if (oldParent && oldParent._id != this._id){
-                oldParent._removeMacro(entry)
-                await oldParent.save(false);
+        async removeMacros(macroList,del=false,refresh=true){
+            for (let macroId of macroList){
+                await this.removeMacroById(macroId,del,refresh);
             }
-            game.customFolders.macro.entries.set(macroId,entry)
-        }else{
-            //Create entry and assign to this obj
-            entry = game.macros.get(macroId);
-            entry.data.folder = this._id;
-            game.customFolders.macro.entries.insert(entry);
-            this._addMacro(entry);
+            await this.save(refresh);
+        }
+        async removeMacro(macro,del=false,refresh=true){
+            this._removeMacro(macro,del);
+            if (del){
+                game.customFolders.macro.entries.remove(macro.id);
+            }else{
+                let entry = game.customFolders.macro.entries.get(macro.id);
+                let hiddenFolder = this.collection.hidden;
+                hiddenFolder._addMacro(entry);
+                await hiddenFolder.save(false);
+            }
+            await this.save(refresh);
+        }
+        async removeMacroById(macroId,del=false,refresh=true){
+            await this.removeMacro(game.customFolders.macro.entries.get(macroId),del,refresh);
+        }
+        async moveFolder(destId,updateParent = true){
+            let destFolder = this.collection.get(destId);
+            await this._moveToFolder(destFolder, updateParent);
+        }
+        async moveToRoot(){
+            this.path = []
+            this.parent = null
+            await this._updatePath()
+            await this.save(false);
+        }
+        _addMacro(macro){
+            if (!this.content.some(x => x.id === macro.id)){
+                this.content = this.content.concat(macro);
+            }
+            macro.data.folder =  this.id;
+        }
+        _removeMacro(macro,del=false){
+            this.content = this.content.filter(x => x.id != macro.id);
             
+            if (del && macro.data.folder)
+                macro.data.folder =  null
         }
-        //update(entry.data);
-        await this.save(refresh);
-    }
-    async removeMacros(macroList,del=false,refresh=true){
-        for (let macroId of macroList){
-            await this.removeMacroById(macroId,del,refresh);
+        _removeFolder(child){
+            this.children = this.children.filter(c => c.id != child.id);
         }
-        await this.save(refresh);
-    }
-    async removeMacro(macro,del=false,refresh=true){
-        this._removeMacro(macro,del);
-        if (del){
-            game.customFolders.macro.entries.remove(macro._id);
-        }else{
-            let entry = game.customFolders.macro.entries.get(macro._id);
-            let hiddenFolder = this.collection.hidden;
-            hiddenFolder._addMacro(entry);
-            await hiddenFolder.save(false);
-        }
-        await this.save(refresh);
-    }
-    async removeMacroById(macroId,del=false,refresh=true){
-        await this.removeMacro(game.customFolders.macro.entries.get(macroId),del,refresh);
-    }
-    async moveFolder(destId,updateParent = true){
-        let destFolder = this.collection.get(destId);
-        await this._moveToFolder(destFolder, updateParent);
-    }
-    async moveToRoot(){
-        this.path = []
-        this.parent = null
-        await this._updatePath()
-        await this.save(false);
-    }
-    _addMacro(macro){
-        if (!this.content.some(x => x._id === macro._id)){
-            this.content = this.content.concat(macro);
-        }
-        macro.data.folder =  this._id;
-    }
-    _removeMacro(macro,del=false){
-        this.content = this.content.filter(x => x._id != macro._id);
-        
-        if (del && macro.data.folder)
-            macro.data.folder =  null
-    }
-    _removeFolder(child){
-        this.children = this.children.filter(c => c.id != child.id);
-    }
-    async _moveToFolder(destFolder, updateParent=true){
+        async _moveToFolder(destFolder, updateParent=true){
 
-        this.path = (destFolder) ? destFolder.path.concat(destFolder.id) : [];
-        if (this.parent && updateParent){
-            this.parent._removeFolder(this);
-            this.parent.save(false); 
-        }
-        if (destFolder){
-            this.parent = destFolder._id;
-            this.parent.children = this.parent.children.concat(this);
-            this.parent.save(false);
-            this.path = this.parent.path.concat(destFolder._id)
-        }else{
-            this.parent = null;
-            this.path = [];
-        }
-        
-        await this.save();
-        
-        await this._updatePath()
-        ui.macros.render(true);
-    }
-    // Update path of this and all child folders
-    async _updatePath(currentFolder=this,parent=this){
-        if (currentFolder.id != parent.id){
-            currentFolder.path = parent.path.concat(parent.id);
-            await currentFolder.update(currentFolder.data,false);
-        }
-        if (currentFolder.children){
-            for (let child of currentFolder.children){
-                child._updatePath(child,currentFolder);
+            this.path = (destFolder) ? destFolder.path.concat(destFolder.id) : [];
+            if (this.parent && updateParent){
+                this.parent._removeFolder(this);
+                this.parent.save(false); 
             }
+            if (destFolder){
+                this.parent = destFolder.id;
+                this.parent.children = this.parent.children.concat(this);
+                this.parent.save(false);
+                this.path = this.parent.path.concat(destFolder.id)
+            }else{
+                this.parent = null;
+                this.path = [];
+            }
+            
+            await this.save();
+            
+            await this._updatePath()
+            ui.macros.renderPopout(true);
         }
-    }
-    /** @override */
-    get collection(){
-        return game?.customFolders?.macro?.folders
-    }
-    /** @override */
-    get entity(){return this.data.entity;}
-
-    /** @override */
-    get content(){return this.data.macros}
-
-    /** @override */
-    set content(c){this.data.macros = c;this.data.macroList = c.map(x => x._id)}
-
-    /** @override */
-    get children(){return this.data.children}
-
-    set children(c){this.data.children = c;}
-    /** @override */
-    static get collection(){
-        return game?.customFolders?.macro?.folders
-    }
-
-    get name(){return this.data.titleText}
-    set name(n){this.data.titleText = n;}
-    get color(){return this.data.colorText}
-    set color(c){this.data.colorText = c;}
-    get fontColor(){return this.data.fontColorText}
-    set fontColor(fc){this.data.fontColorText = fc;}
-    get icon(){return this.data.folderIcon}
-    set icon(i){this.folderIcon = i;}
-    get macroList(){return this.data.macroList};
-    set macroList(c){this.data.macroList = c}
-    set folderIcon(i){this.data.folderIcon = i}
-    get path(){return this.data.pathToFolder}
-    set path(p){this.data.pathToFolder = p}
-    get parent(){return this.collection.get(this.data.parent)}
-    set parent(p){this.data.parent = p;}
-    get isDefault(){return this.id === 'default'}
-    get isHidden(){return this.id === 'hidden'}
-    set expanded(e){this.data.expanded = e}
-    get playerDefault(){return this.data.playerDefault};
-    set playerDefault(p){this.data.playerDefault=p}
-    // Recursively generate a pretty name
-    get pathName(){
-        if (this.parent)
-            return this.parent.pathName+'/'+this.name
-        return this.name;
-    }
-}
-export class MacroFolderDirectory extends MacroDirectory{
-    /** @override */
-	static get defaultOptions() {
-        return mergeObject(super.defaultOptions, {
-            id: "macro",
-            template: "modules/macro-folders/templates/macro-directory.html",
-            title: "Macros",
-            dragDrop: [{ dragSelector: ".macro,.macro-folder", dropSelector: ".macro-folder"}],
-            filters: [{inputSelector: 'input[name="search"]', contentSelector: ".directory-list"}],
-            height:'auto'
-      });
-    }
-    constructor(...args) {
-        super(...args);
-    }
-    _onDragHighlight(event){
-        if (game.user.isGM){
-            super._onDragHighlight(event);
-        }
-    }
-    async checkDeleted(){
-        let goneMacros = game.customFolders.macro.entries.filter(x => !game.macros.get(x._id));
-        for (let c of goneMacros){
-            await c.parent.removeMacro(c,true,false);
-        }
-    }
-    /** @override */
-    initialize(){
-        //filter out gone macros
-        if (!this.constructor.folders && !this.constructor.collection){
-            this.folders = [];
-            this.entities = [];
-        }
-        else if (game.user.isGM){
-            this.folders = [...this.constructor.folders];
-            this.entities = [...this.constructor.collection];
-        }else{
-            //TODO
-            this.folders = [...this.constructor.folders].filter(x => x?.content?.find(y => y?.permission > 0) || x.playerDefault === game.userId);
-            let toAdd = [];
-            for (let folder of this.folders){
-                let parent = folder.parent
-                while (parent){
-                    if (!this.folders.some(x => x._id === parent._id) && !toAdd.some(x => x._id === parent._id))
-                        toAdd.push(parent);
-                    parent = parent.parent;
+        // Update path of this and all child folders
+        async _updatePath(currentFolder=this,parent=this){
+            if (currentFolder.id != parent.id){
+                currentFolder.path = parent.path.concat(parent.id);
+                await currentFolder.update(currentFolder.data,false);
+            }
+            if (currentFolder.children){
+                for (let child of currentFolder.children){
+                    child._updatePath(child,currentFolder);
                 }
             }
-            this.folders =this.folders.concat(toAdd)
-            this.entities = [...this.constructor.collection].filter(z => z?.permission > 0);
         }
-        let tree = this.constructor.setupFolders(this.folders, this.entities);
-        
-        this.tree = this._sortTreeAlphabetically(tree)
-                
+        toJSON(){
+            return this.data;
+        }
+        /** @override */
+        get collection(){
+            return game?.customFolders?.macro?.folders
+        }
+        /** @override */
+        get entity(){return this.data.entity;}
+
+        /** @override */
+        get content(){return this.data.macros}
+
+        /** @override */
+        set content(c){this.data.macros = c;this.data.macroList = c.map(x => x.id)}
+
+        /** @override */
+        get children(){return this.data.children}
+
+        set children(c){this.data.children = c;}
+        /** @override */
+        static get collection(){
+            return game?.customFolders?.macro?.folders
+        }
+        get id(){return this.data._id};
+        get name(){return this.data.titleText}
+        set name(n){this.data.titleText = n;}
+        get color(){return this.data.colorText}
+        set color(c){this.data.colorText = c;}
+        get fontColor(){return this.data.fontColorText}
+        set fontColor(fc){this.data.fontColorText = fc;}
+        get icon(){return this.data.folderIcon}
+        set icon(i){this.folderIcon = i;}
+        get macroList(){return this.data.macroList};
+        set macroList(c){this.data.macroList = c}
+        set folderIcon(i){this.data.folderIcon = i}
+        get path(){return this.data.pathToFolder}
+        set path(p){this.data.pathToFolder = p}
+        get parent(){return this.collection.get(this.data.parent)}
+        set parent(p){this.data.parent = p;}
+        get isDefault(){return this.id === 'default'}
+        get isHidden(){return this.id === 'hidden'}
+        set expanded(e){this.data.expanded = e}
+        get playerDefault(){return this.data.playerDefault};
+        set playerDefault(p){this.data.playerDefault=p}
+        get displayed(){return this.data.visible}
+        // Recursively generate a pretty name
+        get pathName(){
+            if (this.parent)
+                return this.parent.pathName+'/'+this.name
+            return this.name;
+        }
     }
-    _sortTreeAlphabetically(tree){
-        let fn = (a,b) => {
-            if (a.name < b.name) return -1;
-            if (a.name > b.name) return 1;
-            return 0;
+    class MacroFolderDirectory extends SidebarDirectory{
+        /** @override */
+        static get defaultOptions() {
+            return foundry.utils.mergeObject(super.defaultOptions, {
+                id: "macro",
+                template: "modules/macro-folders/templates/macro-directory.html",
+                title: "Macros",
+                dragDrop: [{ dragSelector: ".macro,.macro-folder", dropSelector: ".macro-folder"}],
+                filters: [{inputSelector: 'input[name="search"]', contentSelector: ".directory-list"}],
+                height:'800'
+        });
         }
-        tree.children = tree.children.sort(fn);
-        for (let s of tree.children.filter(x => x.children?.length > 1)){
-            s.children = s.children.sort(fn);
+        constructor(...args) {
+            super(...args);
+        }
+        _onDragHighlight(event){
+            if (game.user.isGM){
+                super._onDragHighlight(event);
+            }
+        }
+        async checkDeleted(){
+            let goneMacros = game.customFolders.macro.entries.contents.filter(x => !game.macros.get(x.id));
+            for (let c of goneMacros){
+                await c.parent.removeMacro(c,true,false);
+            }
+        }
+
+        static documentName = 'Macro';
+        /** @override */
+        initialize(){
+            //filter out gone macros
+            if (!this.constructor.folders && !this.constructor.collection){
+                this.folders = [];
+                this.documents = [];
+            }
+            else if (game.user.isGM){
+                this.folders = [...this.constructor.folders];
+                this.documents = [...this.constructor.collection];
+            }else{
+                //TODO
+                this.folders = [...this.constructor.folders].filter(x => x?.content?.find(y => y?.permission > 0) || x.playerDefault === game.userId);
+                let toAdd = [];
+                for (let folder of this.folders){
+                    let parent = folder.parent
+                    while (parent){
+                        if (!this.folders.some(x => x.id === parent.id) && !toAdd.some(x => x.id === parent.id))
+                            toAdd.push(parent);
+                        parent = parent.parent;
+                    }
+                }
+                this.folders =this.folders.concat(toAdd)
+                this.documents = [...this.constructor.collection].filter(z => z?.permission > 0);
+            }
+            let tree = this.constructor.setupFolders(this.folders, this.documents);
             
+            this.tree = this._sortTreeAlphabetically(tree)
+                    
         }
-        return tree;
-    }
-    
-    /** @override */
-    get entity() {
-        return "Macro";
-    }
-    /** @override */
-    static get entity() {
-        return "Macro";
-    }
-    /** @override */
-    static get folders(){
-        return game.customFolders?.macro?.folders;
-    }
-
-    /** @override */
-    static get collection() {
-        return game.customFolders?.macro?.entries;
-    }
-
-    /** @override */
-    getData(options) {
-        return {
-            user: game.user,
-            tree: this.tree,
-        };
-    }
-    _onCreateFolder(event) {
-
-        event.preventDefault();
-        event.stopPropagation();
-        const button = event.currentTarget;
-        const parent = game.customFolders.macro.folders.get(button.dataset.parentFolder);
-        const data = new MacroFolder();
-        if (parent){
-            data.path = parent.path.concat(parent.id)
-            data.parent = parent._id;
+        _sortTreeAlphabetically(tree){
+            let fn = (a,b) => {
+                if (a.name < b.name) return -1;
+                if (a.name > b.name) return 1;
+                return 0;
+            }
+            tree.children = tree.children.sort(fn);
+            for (let s of tree.children.filter(x => x.children?.length > 1)){
+                s.children = s.children.sort(fn);
+                
+            }
+            return tree;
         }
-        const options = {top: button.offsetTop, left: window.innerWidth - 310 - FolderConfig.defaultOptions.width};
-        new MacroFolderEditConfig(data, options).showDialog(false);
-    }
-    /** @override */
-    activateListeners(html){
-        super.activateListeners(html);
-
-        // // Refresh button
-        html.find('.refresh-directory').click(() => {
-            game.customFolders.macro = null;
-            initFolders();
-            ui.macros.render(true);
-        })
-        // Options below are GM only
-        if ( !game.user.isGM ) return;
-
-        // Create Macro
-        html.find('.create-macro').click(this._onCreateEntity.bind(this));
-
-        // //Manually set icons in here for now
-        // $('#macros .directory-item.folder').each((i,el) => {
-        //     let li = $(el);
-        //     let folder = game.customFolders.macro.folders.get(li.data("folderId"));
-        //     if (folder?.icon){
-        //         let oldTag = el.querySelector('i');
-        //         let folderCustomIcon = document.createElement('img');
-        //         folderCustomIcon.src = folder.icon;
-        //         oldTag.parentNode.replaceChild(folderCustomIcon,oldTag);
-        //     }
-        // });
         
-    }
+        /** @override */
+        static get folders(){
+            return game.customFolders?.macro?.folders;
+        }
 
-    /** @override */
-    _getEntryContextOptions(){
-        let x = MacroDirectory.prototype._getEntryContextOptions().filter(x => x.name != "FOLDER.Clear");
-        let i = x.findIndex(c => c.name === "SIDEBAR.Delete");
+        /** @override */
+        static get collection() {
+            return game.customFolders?.macro?.entries;
+        }
 
-        x[i].callback = async function(li)  {
-            const entity = game.macros.get(li.data("entityId"));
-            Dialog.confirm({
-              title: `${game.i18n.localize("SIDEBAR.Delete")} ${entity.name}`,
-              content: game.i18n.localize("SIDEBAR.DeleteConfirm"),
-              yes: async () => {
-                await entity.delete.bind(entity)()
-                  
+        /** @override */
+        getData(options) {
+            return {
+                user: game.user,
+                tree: this.tree,
+            };
+        }
+        _onCreateFolder(event) {
+
+            event.preventDefault();
+            event.stopPropagation();
+            const button = event.currentTarget;
+            const parent = game.customFolders.macro.folders.get(button.dataset.parentFolder);
+            const data = new MacroFolder();
+            if (parent){
+                data.path = parent.path.concat(parent.id)
+                data.parent = parent.id;
+            }
+            const options = {top: button.offsetTop, left: window.innerWidth - 310 - FolderConfig.defaultOptions.width};
+            new MacroFolderEditConfig(data, options).showDialog(false);
+        }
+        /** @override */
+        activateListeners(html){
+            super.activateListeners(html);
+
+            // // Refresh button
+            html.find('.refresh-directory').click(() => {
                 game.customFolders.macro = null;
                 initFolders(true);
-                if (ui.macros.element.length>0)
-                    ui.macros.render(true);
-                  
-              },
-              options: {
-                top: Math.min(li[0].offsetTop, window.innerHeight - 350),
-                left: window.innerWidth - 720
-              }
-            });
-        }
-        i = x.findIndex(c => c.name === "SIDEBAR.Duplicate");
-        x[i].callback = async function(li)  {
-            const entity = game.macros.get(li.data("entityId"));
-            let originalEntry = game.customFolders.macro.entries.get(entity._id);
+            })
+            // Options below are GM only
+            if ( !game.user.isGM ) return;
 
-            await entity.clone({name: `${entity.name} (Copy)`}).then(async(result) => {
-                result.data.folder = originalEntry.data.folder;
-                await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id,false);
+            // Create Macro
+            html.find('.create-macro').click(this._onCreateEntity.bind(this));
 
-                await initFolders(true);
-            });
+            // //Manually set icons in here for now
+            // $('#macros .directory-item.folder').each((i,el) => {
+            //     let li = $(el);
+            //     let folder = game.customFolders.macro.folders.get(li.data("folderId"));
+            //     if (folder?.icon){
+            //         let oldTag = el.querySelector('i');
+            //         let folderCustomIcon = document.createElement('img');
+            //         folderCustomIcon.src = folder.icon;
+            //         oldTag.parentNode.replaceChild(folderCustomIcon,oldTag);
+            //     }
+            // });
+            
         }
-        return x;
-    }
-    /** @override */
-    _getFolderContextOptions(){
-        return[
-            {
-                name: "FOLDER.Edit",
-                icon: '<i class="fas fa-edit"></i>',
-                condition: game.user.isGM,
-                // TODO 
-                callback: header => {
+
+        /** @override */
+        _getEntryContextOptions(){
+            let x = MacroDirectory.prototype._getEntryContextOptions().filter(x => x.name != "FOLDER.Clear");
+            let i = x.findIndex(c => c.name === "SIDEBAR.Delete");
+
+            x[i].callback = async function(li)  {
+                const entity = game.macros.get(li.data("entityId"));
+                Dialog.confirm({
+                title: `${game.i18n.localize("SIDEBAR.Delete")} ${entity.name}`,
+                content: game.i18n.localize("SIDEBAR.DeleteConfirm"),
+                yes: async () => {
+                    await entity.delete.bind(entity)()
+                    
+                    game.customFolders.macro = null;
+                    initFolders(true);
+                    if (ui.macros.element.length>0)
+                        ui.macros.renderPopout(true);
+                    
+                },
+                options: {
+                    top: Math.min(li[0].offsetTop, window.innerHeight - 350),
+                    left: window.innerWidth - 720
+                }
+                });
+            }
+            i = x.findIndex(c => c.name === "SIDEBAR.Duplicate");
+            x[i].callback = async function(li)  {
+                const entity = game.macros.get(li.data("entityId"));
+                let originalEntry = game.customFolders.macro.entries.get(entity.id);
+
+                await entity.clone({name: `${entity.name} (Copy)`}).then(async(result) => {
+                    result.data.folder = originalEntry.data.folder;
+                    await game.customFolders.macro.folders.get(result.data.folder).addMacro(result.id,false);
+
+                    await initFolders(true);
+                });
+            }
+            return x;
+        }
+        /** @override */
+        _getFolderContextOptions(){
+            return[
+                {
+                    name: "FOLDER.Edit",
+                    icon: '<i class="fas fa-edit"></i>',
+                    condition: game.user.isGM,
+                    // TODO 
+                    callback: header => {
+                        const li = header.parent()[0];
+                        const folder = game.customFolders.macro.folders.get(li.dataset.folderId);
+                        const options = {top: li.offsetTop, left: window.innerWidth - 310 - FolderConfig.defaultOptions.width};
+                        new MacroFolderEditConfig(folder, options).showDialog();
+                    }
+                },{
+                    name: "PERMISSION.Configure",
+                    icon: '<i class="fas fa-lock"></i>',
+                    condition: () => game.user.isGM,
+                    callback: header => {
                     const li = header.parent()[0];
                     const folder = game.customFolders.macro.folders.get(li.dataset.folderId);
-                    const options = {top: li.offsetTop, left: window.innerWidth - 310 - FolderConfig.defaultOptions.width};
-                    new MacroFolderEditConfig(folder, options).showDialog();
-                }
-            },{
-                name: "PERMISSION.Configure",
-                icon: '<i class="fas fa-lock"></i>',
-                condition: () => game.user.isGM,
-                callback: header => {
-                  const li = header.parent()[0];
-                  const folder = game.customFolders.macro.folders.get(li.dataset.folderId);
-                  new PermissionControl(folder, {
-                    top: Math.min(li.offsetTop, window.innerHeight - 350),
-                    left: window.innerWidth - 720
-                  }).render(true);
-                }
-              },
-            {
-                name: "FOLDER.Remove",
-                icon: '<i class="fas fa-trash"></i>',
-                condition: header => { 
-                    return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
-                },
-                callback: header => {
-                    const li = header.parent();
-                    const folder = game.customFolders.macro.folders.get(li.data("folderId"));
-                    // TODO 
-                    Dialog.confirm({
-                    title: `${game.i18n.localize("FOLDER.Remove")}: ${folder.name}`,
-                    content: game.i18n.localize("FOLDER.RemoveConfirm"),
-                    yes: () => folder.delete(),
-                    options: {
-                        top: Math.min(li[0].offsetTop, window.innerHeight - 350),
-                        left: window.innerWidth - 720,
-                        width: 400
+                    new PermissionControl(folder, {
+                        top: Math.min(li.offsetTop, window.innerHeight - 350),
+                        left: window.innerWidth - 720
+                    }).render(true);
                     }
-                    });
-                }
-            },{
-                name: "FOLDER.Delete",
-                icon: '<i class="fas fa-trash"></i>',
-                condition: header => { 
-                    return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
                 },
-                callback: header => {
-                    const li = header.parent();
-                    const folder = game.customFolders.macro.folders.get(li.data("folderId"));
-                    Dialog.confirm({
-                        title: `${game.i18n.localize("FOLDER.Delete")}: ${folder.name}`,
-                        content: game.i18n.localize("FOLDER.DeleteConfirm"),
-                        yes: () => folder.delete(true,true),
+                {
+                    name: "FOLDER.Remove",
+                    icon: '<i class="fas fa-trash"></i>',
+                    condition: header => { 
+                        return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
+                    },
+                    callback: header => {
+                        const li = header.parent();
+                        const folder = game.customFolders.macro.folders.get(li.data("folderId"));
+                        // TODO 
+                        Dialog.confirm({
+                        title: `${game.i18n.localize("FOLDER.Remove")}: ${folder.name}`,
+                        content: game.i18n.localize("FOLDER.RemoveConfirm"),
+                        yes: () => folder.delete(),
                         options: {
                             top: Math.min(li[0].offsetTop, window.innerHeight - 350),
                             left: window.innerWidth - 720,
                             width: 400
                         }
                         });
-                }
-            },{
-                name: "CF.moveFolder",
-                icon: '<i class="fas fa-sitemap"></i>',
-                condition: header => { 
-                    return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
-                },
-                callback: header => {
-                    const li = header.parent();
-                    const folder = game.customFolders.macro.folders.get(li.data("folderId"));
-                    new MacroFolderMoveDialog(folder,{}).render(true);
-                }
-            }
-        ]
-    }
-
-    /** @override */
-	_onDragStart(event) {
-        if (!game.user.isGM){
-            super._onDragStart(event);
-            return;
-        }
-        let li = event.currentTarget.closest("li");
-        if (li.dataset.folderId == 'default')
-            return;
-        const dragData = li.classList.contains("folder") ?
-            { type: "Folder", id: li.dataset.folderId, entity: this.constructor.entity } :
-            { type: this.constructor.entity, id: li.dataset.entityId };
-        event.dataTransfer.setData("text/plain", JSON.stringify(dragData));
-        this._dragType = dragData.type;
-    }
-    _onDrop(event){
-        if (!game.user.isGM)
-            return;
-        event.stopPropagation();
-        let li = event.currentTarget.closest("li.folder");
-        if (li) li.classList.remove("droptarget");
-        let data;
-        try{
-            data = JSON.parse(event.dataTransfer.getData('text/plain'));
-        }catch(err){
-            return;
-        }
-        if (data.pack){
-            super._onDrop(event);
-        }
-        let folderId = li.dataset.folderId;
-
-        if (folderId){
-            if (data.type === this.constructor.entity){
-                if (game.customFolders.macro.entries.has(data.id) && game.customFolders.macro.entries.get(data.id).folder != folderId)
-                    game.customFolders.macro.folders.get(folderId).addMacro(data.id)
-            }else if (data.type === 'Folder'){
-                // Move folder
-                let destFolderId = folderId;
-                let movingFolderId = data.id;
-                let destFolder = game.customFolders.macro.folders.get(destFolderId);
-                let movingFolder = game.customFolders.macro.folders.get(movingFolderId);
-                if (!destFolder.isHidden
-                    && !destFolder.isDefault
-                    && destFolderId != movingFolderId
-                    && destFolderId != movingFolder?.parent?.id
-                    && ((!destFolder.path?.includes(movingFolderId) && destFolder.path.length > 0)
-                        || destFolder.path.length === 0))
-                    {
-                        movingFolder.moveFolder(destFolderId);
                     }
-            }
+                },{
+                    name: "FOLDER.Delete",
+                    icon: '<i class="fas fa-trash"></i>',
+                    condition: header => { 
+                        return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
+                    },
+                    callback: header => {
+                        const li = header.parent();
+                        const folder = game.customFolders.macro.folders.get(li.data("folderId"));
+                        Dialog.confirm({
+                            title: `${game.i18n.localize("FOLDER.Delete")}: ${folder.name}`,
+                            content: game.i18n.localize("FOLDER.DeleteConfirm"),
+                            yes: () => folder.delete(true,true),
+                            options: {
+                                top: Math.min(li[0].offsetTop, window.innerHeight - 350),
+                                left: window.innerWidth - 720,
+                                width: 400
+                            }
+                            });
+                    }
+                },{
+                    name: "CF.moveFolder",
+                    icon: '<i class="fas fa-sitemap"></i>',
+                    condition: header => { 
+                        return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
+                    },
+                    callback: header => {
+                        const li = header.parent();
+                        const folder = game.customFolders.macro.folders.get(li.data("folderId"));
+                        new MacroFolderMoveDialog(folder,{}).render(true);
+                    }
+                }
+            ]
         }
-    }
-    async _onCreateEntity(event){
-        event.preventDefault();
-        event.stopPropagation();
-        let parentId = 'default'
-        if (event.currentTarget.classList.contains('create-entity')){
-            // is a button on folder
-            parentId = event.currentTarget.closest('li')?.dataset?.folderId;
-        }
-        const name = game.i18n.format("ENTITY.New", {entity: game.i18n.localize("ENTITY.Macro")});
-        const macro = await Macro.create({name, type: "chat", scope: "global", folder:parentId}, {temporary: true});
-        macro.sheet.render(true);
-    }
-    // Taken from SidebarDirectory._onSearchFilter()
-    // modified slightly for custom data structures
-    _onSearchFilter(event, query, html) {
-        const isSearch = !!query;
-        let entityIds = new Set();
-        let folderIds = new Set();
-    
-        // Match entities and folders
-        if ( isSearch ) {
-          const rgx = new RegExp(RegExp.escape(query), "i");
-    
-          // Match entity names
-          for ( let e of game.customFolders.macro.entries.entities ) {
-            if ( rgx.test(e.name) ) {
-              entityIds.add(e.id);
-              if ( e.data.folder ) folderIds.add(e.data.folder);
-            }
-          }
-    
-          // Match folder tree
-          const includeFolders = fids => {
-            const folders = this.folders.filter(f => fids.has(f._id));
-            const pids = new Set(folders.filter(f => f.data.parent).map(f => f.data.parent));
-            if ( pids.size ) {
-              pids.forEach(p => folderIds.add(p));
-              includeFolders(pids);
-            }
-          };
-          includeFolders(folderIds);
-        }
-    
-        // Toggle each directory item
-        for ( let el of html.querySelectorAll(".directory-item,.macro") ) {
-    
-          // Entities
-          if (el.classList.contains("entity")) {
-            el.style.display = (!isSearch || entityIds.has(el.dataset.entityId)) ? "" : "none";
-          }
-    
-          // Folders
-          if (el.classList.contains("folder")) {
-            let match = isSearch && folderIds.has(el.dataset.folderId);
-            el.style.display = (!isSearch || match) ? "" : "none";
-            if (isSearch && match) el.classList.remove("collapsed");
-            else el.classList.toggle("collapsed", !game.folders._expanded[el.dataset.folderId]);
-          }
-        }
-      }
 
-}
-function libWrapperRegister(){
+        /** @override */
+        _onDragStart(event) {
+            if (!game.user.isGM){
+                super._onDragStart(event);
+                return;
+            }
+            let li = event.currentTarget.closest("li");
+            if (li.dataset.folderId == 'default')
+                return;
+            const dragData = li.classList.contains("folder") ?
+                { type: "Folder", id: li.dataset.folderId, entity: this.constructor.documentName } :
+                { type: this.constructor.documentName, id: li.dataset.entityId };
+            event.dataTransfer.setData("text/plain", JSON.stringify(dragData));
+            this._dragType = dragData.type;
+        }
+        _onDrop(event){
+            if (!game.user.isGM)
+                return;
+            event.stopPropagation();
+            let li = event.currentTarget.closest("li.folder");
+            if (li) li.classList.remove("droptarget");
+            let data;
+            try{
+                data = JSON.parse(event.dataTransfer.getData('text/plain'));
+            }catch(err){
+                return;
+            }
+            if (data.pack){
+                super._onDrop(event);
+            }
+            let folderId = li.dataset.folderId;
+
+            if (folderId){
+                if (data.type === this.constructor.documentName){
+                    if (game.customFolders.macro.entries.has(data.id) && game.customFolders.macro.entries.get(data.id).folder != folderId)
+                        game.customFolders.macro.folders.get(folderId).addMacro(data.id)
+                }else if (data.type === 'Folder'){
+                    // Move folder
+                    let destFolderId = folderId;
+                    let movingFolderId = data.id;
+                    let destFolder = game.customFolders.macro.folders.get(destFolderId);
+                    let movingFolder = game.customFolders.macro.folders.get(movingFolderId);
+                    if (!destFolder.isHidden
+                        && !destFolder.isDefault
+                        && destFolderId != movingFolderId
+                        && destFolderId != movingFolder?.parent?.id
+                        && ((!destFolder.path?.includes(movingFolderId) && destFolder.path.length > 0)
+                            || destFolder.path.length === 0))
+                        {
+                            movingFolder.moveFolder(destFolderId);
+                        }
+                }
+            }
+        }
+        async _onCreateEntity(event){
+            event.preventDefault();
+            event.stopPropagation();
+            let parentId = 'default'
+            if (event.currentTarget.classList.contains('create-entity')){
+                // is a button on folder
+                parentId = event.currentTarget.closest('li')?.dataset?.folderId;
+            }
+            const name = game.i18n.format("ENTITY.New", {entity: game.i18n.localize("ENTITY.Macro")});
+            const macro = await Macro.create({name, type: "chat", scope: "global", folder:parentId}, {temporary: true});
+            macro.sheet.render(true);
+        }
+        // Taken from SidebarDirectory._onSearchFilter()
+        // modified slightly for custom data structures
+        _onSearchFilter(event, query, rgx, html) {
+            const isSearch = !!query;
+            let entityIds = new Set();
+            let folderIds = new Set();
+        
+            // Match entities and folders
+            if ( isSearch ) {
+            const rgx = new RegExp(RegExp.escape(query), "i");
+        
+            // Match entity names
+            for ( let e of game.customFolders.macro.entries.contents ) {
+                if ( rgx.test(e.name) ) {
+                entityIds.add(e.id);
+                if ( e.data.folder ) folderIds.add(e.data.folder);
+                }
+            }
+        
+            // Match folder tree
+            const includeFolders = fids => {
+                const folders = this.folders.filter(f => fids.has(f.id));
+                const pids = new Set(folders.filter(f => f.data.parent).map(f => f.data.parent));
+                if ( pids.size ) {
+                pids.forEach(p => folderIds.add(p));
+                includeFolders(pids);
+                }
+            };
+            includeFolders(folderIds);
+            }
+        
+            // Toggle each directory item
+            for ( let el of html.querySelectorAll(".directory-item,.macro") ) {
+        
+            // Entities
+            if (el.classList.contains("entity")) {
+                el.style.display = (!isSearch || entityIds.has(el.dataset.entityId)) ? "" : "none";
+            }
+        
+            // Folders
+            if (el.classList.contains("folder")) {
+                let match = isSearch && folderIds.has(el.dataset.folderId);
+                el.style.display = (!isSearch || match) ? "" : "none";
+                if (isSearch && match) el.classList.remove("collapsed");
+                else el.classList.toggle("collapsed", !game.folders._expanded[el.dataset.folderId]);
+            }
+            }
+        }
+
+    }
     libWrapper.register(mod,'PermissionControl.prototype._updateObject',async function(wrapper, ...args){
         if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
             game.settings.set(mod,'updating',true);
             wrapper(...args).then(async () => {
                 await game.settings.set(mod,'updating',false)
                 if (ui.macros.element.length>0)
-                    ui.macros.render(true)
+                    ui.macros.renderPopout(true)
             });
         }
         else{
@@ -749,22 +785,18 @@ function libWrapperRegister(){
         let result = await wrapper(...args);
         let event = [...args][0]
         let formData = [...args][1]
-        if (event.submitter && !event.submitter.classList.contains("execute") && result.data){
+        if (event.submitter && !event.submitter.classList.contains("execute") && result?.data){
             if (!result || result.length===0)
-                result = game.customFolders.macro.entries.get(this.object._id);
+                result = game.customFolders.macro.entries.get(this.object.id);
             let authorFolder = game.customFolders.macro.folders.getPlayerFolder(result.data.author)
             result.data.folder = this.object.data.folder ? this.object.data.folder : 
-                (authorFolder ? authorFolder._id : 'default');
-            let existing = game.customFolders.macro.entries.get(result._id);
-            if (existing){
-                game.customFolders.macro.entries.set(result._id,result);
-            }else{
-                await game.customFolders.macro.entries.insert(result);
-            }
-            await game.customFolders.macro.folders.get(result.data.folder).addMacro(result._id,false)
+                (authorFolder ? authorFolder.id : 'default');
+            game.customFolders.macro.entries.set(result.id,new game.MF.MacroEntry(result.data));
+
+            await game.customFolders.macro.folders.get(result.data.folder).addMacro(result.id,false)
             
             if (ui.macros.element.length>0)
-                ui.macros.render(true);
+                ui.macros.renderPopout(true);
             await game.settings.set(mod,'updating',false);
             return formData;
         }
@@ -772,33 +804,33 @@ function libWrapperRegister(){
     },'WRAPPER');
 
     libWrapper.register(mod,'Macro.prototype._onDelete',async function(wrapper, ...args){
-        wrapper(...args);
+        await wrapper(...args);
         if (game.settings.get(mod,'updating')) return;
         game.customFolders.macro = null;
         await initFolders(false);
         if (ui.macros.element.length>0)
-            ui.macros.render(true);
+            ui.macros.renderPopout();
     },'WRAPPER');
 
     libWrapper.register(mod,'Macro.prototype._onCreate',async function(wrapper, ...args){
-        wrapper(...args);
+        await wrapper(...args);
         if (game.settings.get(mod,'updating')) return;
         game.customFolders.macro = null;
         await initFolders(false);
         if (ui.macros.element.length>0)
-            ui.macros.render(true);
+            ui.macros.renderPopout(true);
     },'WRAPPER');
 
     libWrapper.register(mod,'Macro.prototype._onUpdate',async function(wrapper, ...args){
-        wrapper(...args);
+        await wrapper(...args);
         if (game.settings.get(mod,'updating')) return;
         game.customFolders.macro = null;
         await initFolders(false);
         if (ui.macros.element.length>0)
-            ui.macros.render(true);
+            ui.macros.renderPopout(true);
     },'WRAPPER');
 
-    libWrapper.register(mod,'Compendium.prototype.importAll',async function(wrapper, ...args){
+    libWrapper.register(mod,'CompendiumCollection.prototype.importAll',async function(wrapper, ...args){
         await game.settings.set(mod,'updating',true);
         await wrapper({folderId=null, folderName=""}={});
         if (this.entity === 'Macro'){
@@ -806,33 +838,37 @@ function libWrapperRegister(){
         }
         await game.settings.set(mod,'updating',false);
     },'WRAPPER');
-}
-
-Object.defineProperty(Macro,"folder",{
-    get: function folder(){
+    libWrapper.register(mod,'Macro.prototype.folder',function(wrapper, ...args){
         if ( !this.data.folder ) return null;
         return game.customFolders.macro.folders.get(this.data.folder);
-    },
-    set: function folder(fId){
-        this.data.folder = fId;
+    },'OVERRIDE');
+    libWrapper.register(mod,'Macro.prototype.folder#set',function(wrapper, ...args){
+        this.data.folder = [...args][0];
+    },'OVERRIDE');
+    
+    CONFIG.MacroFolder = {documentClass : MacroFolder};
+    game.MF = {
+        MacroEntry:MacroEntry,
+        MacroEntryCollection:MacroEntryCollection,
+        MacroFolder:MacroFolder,
+        MacroFolderCollection:MacroFolderCollection,
+        MacroFolderDirectory:MacroFolderDirectory,
     }
-});
-CONFIG.MacroFolder = {entityClass : MacroFolder};
-
+}
 async function initFolders(refresh=false){
     let allFolders = game.settings.get(mod,'mfolders');
     game.customFolders.macro = {
-        folders:new MacroFolderCollection([]),
-        entries:new Macros([])
+        folders:new game.MF.MacroFolderCollection([]),
+        entries:new game.MF.MacroEntryCollection([])
     }
     // let refresh = false;
     let assigned = []
     let toRemove = [];
-    if (allFolders.hidden && !allFolders.hidden._id){
-        allFolders.hidden._id = 'hidden'
+    if (allFolders.hidden && !allFolders.hidden.id){
+        allFolders.hidden.id = 'hidden'
     }
-    if (allFolders.default && !allFolders.default._id){
-        allFolders.default._id = 'default';
+    if (allFolders.default && !allFolders.default.id){
+        allFolders.default.id = 'default';
     }
     let init1 = false;
     if (Object.keys(allFolders).length == 0 && allFolders.constructor === Object){
@@ -847,7 +883,7 @@ async function initFolders(refresh=false){
                 _id:'hidden'
             },
             default:{
-                macroList:game.macros.entries.map(m => m._id),
+                macroList:game.macros.contents.map(m => m.id),
                 titleText:'Default',
                 _id:'default',
                 colorText:'#000000'
@@ -858,50 +894,49 @@ async function initFolders(refresh=false){
         let macros = []
         folder.macros = []
         for (let macroId of folder.macroList){
-            let existingMacro = game.customFolders?.macro?.entries?.get(macroId)
+            let existingMacro = game.customFolders?.macro?.contents?.get(macroId)
             if (game.macros.has(macroId)){
                 if (!existingMacro){
-                    let macroWithFolder = game.macros.get(macroId);
-                    macroWithFolder.data.folder = folder._id;
-                    game.customFolders.macro.entries.insert(macroWithFolder)
+                    let macroWithFolder = new game.MF.MacroEntry(game.macros.get(macroId).data);
+                    macroWithFolder.folder = folder._id;
+                    game.customFolders.macro.entries.set(macroWithFolder.id,macroWithFolder)
                     macros.push(macroWithFolder)
                 } else
                     macros.push(existingMacro);
             }else{
                 toRemove.push(macroId);
             }
-            //if (folder._id != 'default')
+            //if (folder.id != 'default')
             assigned.push(macroId);
         }
-        let f = MacroFolder.import(folder,macros)
+        let f = game.MF.MacroFolder.import(folder,macros)
         // refresh flag works like "init" in this case
         if (init1)
             await f.save(false); 
 
     }
     // Set default folder content
-    let unassigned = game.macros.entries.filter(x => !assigned.includes(x._id))
-    for (let macroId of unassigned.map(y => y._id)){
+    let unassigned = game.macros.contents.filter(x => !assigned.includes(x.id))
+    for (let macroId of unassigned.map(y => y.id)){
         let playerFolder = game.customFolders.macro.folders.getPlayerFolder(game.macros.get(macroId).data.author)
-        let defaultId = playerFolder ? playerFolder._id : 'default'
+        let defaultId = playerFolder ? playerFolder.id : 'default'
 
         if (game.customFolders.macro.entries.has(macroId)){
             // Macro has an entry (assigned to default folder) 
             await game.customFolders.macro.folders.get(defaultId).addMacro(macroId);
         }else{
             // Macro does not have an entry (because it is new)
-            let macroWithFolder = game.macros.get(macroId);
+            let macroWithFolder = new game.MF.MacroEntry(game.macros.get(macroId).data);
 
-            macroWithFolder.data.folder = defaultId;
+            macroWithFolder.folder = defaultId;
             game.customFolders.macro.entries.set(macroId,macroWithFolder)
             await game.customFolders.macro.folders.get(defaultId).addMacro(macroId);
         }
     }
-    game.customFolders.macro.folders.default.macroList = game.customFolders.macro.folders.default.macroList.concat(unassigned.map(y => y._id));
-    game.customFolders.macro.folders.default.content = game.customFolders.macro.folders.default.macroList.concat(unassigned);
+    game.customFolders.macro.folders.default.content = game.customFolders.macro.folders.default.content.concat(unassigned);
     // Check for removed macros
     let missingMacros = false
-    let goneMacros = game.customFolders.macro.entries.filter(x => !game.macros.get(x._id));
+    let goneMacros = game.customFolders.macro.entries.contents.filter(x => !game.macros.get(x.id));
     for (let c of goneMacros){
         c.parent.removeMacro(c,true,false);
         missingMacros = true;
@@ -910,9 +945,11 @@ async function initFolders(refresh=false){
     // Set child folders
     let allEntries = [...game.customFolders.macro.folders.values()]
     for (let mf of allEntries){
-        let directChildren = allEntries.filter(f => f.data?.pathToFolder?.length > 0 && f.data.pathToFolder[f.data.pathToFolder.length-1] === mf._id)
+        let directChildren = allEntries.filter(f => f.data?.pathToFolder?.length > 0 && f.data.pathToFolder[f.data.pathToFolder.length-1] === mf.id)
         mf.children = directChildren;
     }
+    if (refresh)
+        ui.macros.renderPopout(true);
 
 }
 class ImportExportConfig extends FormApplication {
@@ -950,9 +987,10 @@ class ImportExportConfig extends FormApplication {
                             //await createInitialFolder();
                             await initFolders(true);
                             if (ui.macros.element.length>0)
-                                ui.macros.render(true);
+                                ui.macros.renderPopout(true);
                         }
-                        await refreshFolders();
+                        if (ui.macros.element.length>0)
+                            ui.macros.renderPopout(true);
                         ui.notifications.info(game.i18n.localize('MF.folderImportSuccess'));
                     });
                 }else{
@@ -1072,12 +1110,12 @@ class MacroFolderEditConfig extends FormApplication {
       let allMacros = this.getGroupedMacros();
       return {
         folder: this.object,
-        defaultFolder:this.object._id==='default',
+        defaultFolder:this.object.id==='default',
         amacros: alphaSortMacros(Object.values(allMacros[0])),
         umacros: alphaSortMacros(Object.values(allMacros[1])),
-        players:game.users.entries,
+        players:game.users.contents,
         submitText: game.i18n.localize(this.isEditDialog ? "FOLDER.Update" : "FOLDER.Create"),
-        deleteText: (this.isEditDialog && this.object._id != 'default')?game.i18n.localize("MF.deleteFolder"):null
+        deleteText: (this.isEditDialog && this.object.id != 'default')?game.i18n.localize("MF.deleteFolder"):null
       }
     }
   
@@ -1111,7 +1149,7 @@ class MacroFolderEditConfig extends FormApplication {
             }
             this.object.playerDefault = formData.player;
         }
-        if (this.object.data._id != 'default'){
+        if (this.object.data.id != 'default'){
             let macrosToAdd = []
             let macrosToRemove = []
 
@@ -1131,11 +1169,11 @@ class MacroFolderEditConfig extends FormApplication {
             if (macrosToRemove.length>0)
                 await this.object.removeMacros(macrosToRemove,false);
 
-            if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object.data.parent)?.children?.some(x => x._id === this.object._id)){
+            if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object.data.parent)?.children?.some(x => x.id === this.object.id)){
                 await this.object.moveFolder(this.object.data.parent);
             }
         }
-        await this.object.save();
+        await this.object.save(true);
     }
     showDialog(edit=true){
         this.isEditDialog = edit;
@@ -1222,9 +1260,9 @@ async function createUserFolders(){
    
     let userFolder =  game.customFolders.macro.folders.getUserFolder();
 
-    for (let user of game.users.entries){
-        if (!userFolder.children.find(x => x.name === user.name && x.playerDefault === user._id)){
-            let existingDefault = game.customFolders.macro.folders.getPlayerFolder(user._id);
+    for (let user of game.users.contents){
+        if (!userFolder.children.find(x => x.name === user.name && x.playerDefault === user.id)){
+            let existingDefault = game.customFolders.macro.folders.getPlayerFolder(user.id);
             if (existingDefault){
                 existingDefault.playerDefault = null;
                await existingDefault.save(false);
@@ -1245,7 +1283,7 @@ async function createUserFolders(){
 export class Settings{
     static updateFolder(folderData){
         let existingFolders = game.settings.get(mod,'mfolders');
-        existingFolders[folderData._id]=folderData;
+        existingFolders[folderData.id]=folderData;
         game.settings.set(mod,'mfolders',existingFolders);
     }
     static updateFolders(folders){
@@ -1328,14 +1366,14 @@ export class Settings{
         });
         if (game.customFolders){
             game.customFolders.macro = {
-                    folders:new MacroFolderCollection([]),
-                    entries:new Macros([])
+                    folders:new game.MF.MacroFolderCollection([]),
+                    entries:new game.MF.MacroEntryCollection([])
             }
         } else {
             game.customFolders = {
                 macro:{
-                    folders:new MacroFolderCollection([]),
-                    entries:new Macros([])
+                    folders:new game.MF.MacroFolderCollection([]),
+                    entries:new game.MF.MacroEntryCollection([])
                 }
             }
         }
@@ -1345,14 +1383,12 @@ export class Settings{
 // ==========================
 // Main hook setup
 // ==========================
-Hooks.on('init',function(){
-    libWrapperRegister();
-})
 Hooks.on('ready',async function(){
+    defineClasses();
     await Settings.registerSettings();
     
-    ui.macros = new MacroFolderDirectory();
-    game.macros.apps[1] = ui.macros;
+    ui.macros = new game.MF.MacroFolderDirectory();
+    game.macros.apps.splice(1,1);
     if (shouldAddExportButtons()){
         Hooks.call('addExportButtonsForCF')
     }
