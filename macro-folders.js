@@ -835,8 +835,8 @@ function defineClasses(){
     },'WRAPPER');
     libWrapper.register(mod,'Macro.create',async function(wrapper, ...args){
         let data = [...args][0];
-        let isTemporary = [...args][1].temporary;
-        let isInCompendium = [...args][1].pack
+        let isTemporary = [...args][1]?.temporary;
+        let isInCompendium = [...args][1]?.pack
         if (!isTemporary && !isInCompendium){
             if (data.folder){
                 let folderId = data.folder;
