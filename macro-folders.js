@@ -62,8 +62,10 @@ function defineClasses(){
         get id(){
             return this.data._id;
         }
-        get permissions(){
-            return this.data.permissions;
+        get permission(){
+            if (this.data.permission[game.userId])
+                return this.data.permission[game.userId];
+            return this.data.permission.default
         }
         toJSON(){
             return this.data;
@@ -117,6 +119,7 @@ function defineClasses(){
                 visible:true,
                 children:[]
             },data);
+            this.apps = [];   
         }
         _getSaveData(){
             let data = duplicate(this.data);
@@ -187,9 +190,9 @@ function defineClasses(){
             let nextFolder = (this.parent) ? this.parent : this.collection.default;
             if (deleteAll){
                 for (let macro of this.content){
-                    await Macro.delete(macro.id);
-                    game.customFolders.macro.entries.remove(macro.id);
+                    game.customFolders.macro.entries.delete(macro.id);
                 }
+                await Macro.deleteDocuments(this.content.map(e => e.id));
 
             }else{           
                 for (let macro of this.content){
@@ -208,7 +211,7 @@ function defineClasses(){
             }
 
             if (this.collection.get(this.id)){
-                this.collection.remove(this.id)
+                this.collection.delete(this.id)
             }
             let allFolders = game.settings.get(mod,'mfolders')
             
@@ -347,6 +350,9 @@ function defineClasses(){
         toJSON(){
             return this.data;
         }
+        get isOwner(){
+            return game.user.isGM
+        }
         /** @override */
         get collection(){
             return game?.customFolders?.macro?.folders
@@ -383,6 +389,7 @@ function defineClasses(){
         get path(){return this.data.pathToFolder}
         set path(p){this.data.pathToFolder = p}
         get parent(){return this.collection.get(this.data.parent)}
+        get parentFolder(){return this.collection.get(this.data.parent)}
         set parent(p){this.data.parent = p;}
         get isDefault(){return this.id === 'default'}
         get isHidden(){return this.id === 'hidden'}
@@ -396,7 +403,10 @@ function defineClasses(){
                 return this.parent.pathName+'/'+this.name
             return this.name;
         }
+
     }
+    MacroFolder.prototype.testUserPermission = Macro.prototype.testUserPermission;
+    MacroFolder.prototype.getUserLevel = Macro.prototype.getUserLevel;
     class MacroFolderDirectory extends SidebarDirectory{
         /** @override */
         static get defaultOptions() {
@@ -486,6 +496,9 @@ function defineClasses(){
                 tree: this.tree,
             };
         }
+        refresh(){
+            initFolders(true);
+        }
         _onCreateFolder(event) {
 
             event.preventDefault();
@@ -513,7 +526,7 @@ function defineClasses(){
             if ( !game.user.isGM ) return;
 
             // Create Macro
-            html.find('.create-macro').click(this._onCreateEntity.bind(this));
+            html.find('.create-entity').click(this._onCreateEntity.bind(this));
 
             // //Manually set icons in here for now
             // $('#macros .directory-item.folder').each((i,el) => {
@@ -537,8 +550,8 @@ function defineClasses(){
             x[i].callback = async function(li)  {
                 const entity = game.macros.get(li.data("entityId"));
                 Dialog.confirm({
-                title: `${game.i18n.localize("SIDEBAR.Delete")} ${entity.name}`,
-                content: game.i18n.localize("SIDEBAR.DeleteConfirm"),
+                title: `${game.i18n.localize("MACRO.Delete")} ${entity.name}`,
+                content: `<h4>${game.i18n.localize("AreYouSure")}</h4><p>${game.i18n.localize("MACRO.DeleteWarning")}</p>`,
                 yes: async () => {
                     await entity.delete.bind(entity)()
                     
@@ -592,7 +605,7 @@ function defineClasses(){
                     new PermissionControl(folder, {
                         top: Math.min(li.offsetTop, window.innerHeight - 350),
                         left: window.innerWidth - 720
-                    }).render(true);
+                    }).render(true,{editable:true});
                     }
                 },
                 {
@@ -606,8 +619,11 @@ function defineClasses(){
                         const folder = game.customFolders.macro.folders.get(li.data("folderId"));
                         // TODO 
                         Dialog.confirm({
-                        title: `${game.i18n.localize("FOLDER.Remove")}: ${folder.name}`,
-                        content: game.i18n.localize("FOLDER.RemoveConfirm"),
+                            title: `${game.i18n.localize("FOLDER.Remove")}: ${folder.name}`,
+                            content: `
+                                    <p>${game.i18n.localize("AreYouSure")}</p>
+                                    <p>${game.i18n.localize("FOLDER.RemoveWarning")}</p>
+                                `,
                         yes: () => folder.delete(),
                         options: {
                             top: Math.min(li[0].offsetTop, window.innerHeight - 350),
@@ -627,7 +643,10 @@ function defineClasses(){
                         const folder = game.customFolders.macro.folders.get(li.data("folderId"));
                         Dialog.confirm({
                             title: `${game.i18n.localize("FOLDER.Delete")}: ${folder.name}`,
-                            content: game.i18n.localize("FOLDER.DeleteConfirm"),
+                            content: `
+                                    <p>${game.i18n.localize("AreYouSure")}</p>
+                                    <p>${game.i18n.localize("FOLDER.DeleteWarning")}</p>
+                                `,
                             yes: () => folder.delete(true,true),
                             options: {
                                 top: Math.min(li[0].offsetTop, window.innerHeight - 350),
@@ -709,13 +728,12 @@ function defineClasses(){
             event.preventDefault();
             event.stopPropagation();
             let parentId = 'default'
-            if (event.currentTarget.classList.contains('create-entity')){
+            if (!event.currentTarget.parentElement.classList.contains('header-actions')){
                 // is a button on folder
                 parentId = event.currentTarget.closest('li')?.dataset?.folderId;
             }
             const name = game.i18n.format("ENTITY.New", {entity: game.i18n.localize("ENTITY.Macro")});
-            const macro = await Macro.create({name, type: "chat", scope: "global", folder:parentId}, {temporary: true});
-            macro.sheet.render(true);
+            await Macro.create({name, type: "chat", scope: "global",folderId:parentId}, {temporary: true});
         }
         // Taken from SidebarDirectory._onSearchFilter()
         // modified slightly for custom data structures
@@ -767,54 +785,73 @@ function defineClasses(){
         }
 
     }
+    //Taken from foundry.js (PermissionControl._updateObject)
+    function permissionUpdateForMacroFolder(event,formData){
+        event.preventDefault();
+        if (!game.user.isGM) throw new Error("You do not have the ability to configure permissions.");
+    
+        // Collect user permissions
+        const perms = {};
+        for ( let [user, level] of Object.entries(formData) ) {
+            if ( (name !== "default") && (level === -1) ) {
+                delete perms[user];
+                continue;
+            }
+            perms[user] = level;
+        }
+        const cls = Macro
+        const updates = this.document.content.map(e => {
+            const p = foundry.utils.deepClone(e.data.permission);
+            for ( let [k, v] of Object.entries(perms) ) {
+                if ( v === -2 ) delete p[k];
+                else p[k] = v;
+            }
+            return {_id: e.id, permission: p}
+        });
+        return cls.updateDocuments(updates, {diff: false, recursive: false, noHook: true});
+    }
     libWrapper.register(mod,'PermissionControl.prototype._updateObject',async function(wrapper, ...args){
-        if (this.entity instanceof Macro || this.entity instanceof MacroFolder){
+        if (this.document instanceof Macro){
             game.settings.set(mod,'updating',true);
             wrapper(...args).then(async () => {
                 await game.settings.set(mod,'updating',false)
                 if (ui.macros.element.length>0)
                     ui.macros.renderPopout(true)
             });
-        }
-        else{
+        } else if (this.document instanceof MacroFolder){
+            return permissionUpdateForMacroFolder.bind(this)(...args)
+        }else{
             return wrapper(...args);
         }
-    },'WRAPPER');
-    libWrapper.register(mod,'MacroConfig.prototype._updateObject',async function(wrapper, ...args){
-        await game.settings.set(mod,'updating',true);
-        let result = await wrapper(...args);
-        let event = [...args][0]
-        let formData = [...args][1]
-        if (event.submitter && !event.submitter.classList.contains("execute") && result?.data){
-            if (!result || result.length===0)
-                result = game.customFolders.macro.entries.get(this.object.id);
-            let authorFolder = game.customFolders.macro.folders.getPlayerFolder(result.data.author)
-            result.data.folder = this.object.data.folder ? this.object.data.folder : 
-                (authorFolder ? authorFolder.id : 'default');
-            game.customFolders.macro.entries.set(result.id,new game.MF.MacroEntry(result.data));
-
-            await game.customFolders.macro.folders.get(result.data.folder).addMacro(result.id,false)
-            
-            if (ui.macros.element.length>0)
-                ui.macros.renderPopout(true);
-            await game.settings.set(mod,'updating',false);
-            return formData;
-        }
-        await game.settings.set(mod,'updating',false);
-    },'WRAPPER');
+    },'MIXED');
 
     libWrapper.register(mod,'Macro.prototype._onDelete',async function(wrapper, ...args){
         await wrapper(...args);
-        if (game.settings.get(mod,'updating')) return;
+        if (game.settings.get(mod,'updating') || !game.macros.get([...args][1])) return;
         game.customFolders.macro = null;
         await initFolders(false);
         if (ui.macros.element.length>0)
             ui.macros.renderPopout();
     },'WRAPPER');
-
+    libWrapper.register(mod,'Macro.create',async function(wrapper, ...args){
+        let data = [...args][0];
+        let isTemporary = [...args][1].temporary;
+        let isInCompendium = [...args][1].pack
+        if (!isTemporary && !isInCompendium){
+            if (data.folder){
+                let folderId = data.folder;
+                data.folder = null;
+                let result = await wrapper(data,[...args][1]);
+                console.log(result);
+                await game.customFolders.macro.folders.get(folderId).addMacro(result.id);
+                return result;
+            }
+        }
+        return wrapper(...args);
+    },'WRAPPER');
     libWrapper.register(mod,'Macro.prototype._onCreate',async function(wrapper, ...args){
         await wrapper(...args);
-        if (game.settings.get(mod,'updating')) return;
+        if (game.settings.get(mod,'updating') || !game.macros.get([...args][2])) return;
         game.customFolders.macro = null;
         await initFolders(false);
         if (ui.macros.element.length>0)
@@ -823,7 +860,7 @@ function defineClasses(){
 
     libWrapper.register(mod,'Macro.prototype._onUpdate',async function(wrapper, ...args){
         await wrapper(...args);
-        if (game.settings.get(mod,'updating')) return;
+        if (game.settings.get(mod,'updating') || !game.macros.get([...args][2])) return;
         game.customFolders.macro = null;
         await initFolders(false);
         if (ui.macros.element.length>0)
@@ -838,14 +875,13 @@ function defineClasses(){
         }
         await game.settings.set(mod,'updating',false);
     },'WRAPPER');
-    libWrapper.register(mod,'Macro.prototype.folder',function(wrapper, ...args){
+    libWrapper.register(mod,'Macro.prototype.folder',function(...args){
         if ( !this.data.folder ) return null;
         return game.customFolders.macro.folders.get(this.data.folder);
     },'OVERRIDE');
-    libWrapper.register(mod,'Macro.prototype.folder#set',function(wrapper, ...args){
+    libWrapper.register(mod,'Macro.prototype.folder#set',function(...args){
         this.data.folder = [...args][0];
     },'OVERRIDE');
-    
     CONFIG.MacroFolder = {documentClass : MacroFolder};
     game.MF = {
         MacroEntry:MacroEntry,
@@ -982,13 +1018,10 @@ class ImportExportConfig extends FormApplication {
                     }
                 });
                 if (success){
+                    await game.settings.set(mod,'user-folder-location','');
                     game.settings.set(mod,'mfolders',importJson).then(async function(){
-                        if (Object.keys(importJson).length===0){
-                            //await createInitialFolder();
-                            await initFolders(true);
-                            if (ui.macros.element.length>0)
-                                ui.macros.renderPopout(true);
-                        }
+                        //await createInitialFolder();
+                        await initFolders(true);
                         if (ui.macros.element.length>0)
                             ui.macros.renderPopout(true);
                         ui.notifications.info(game.i18n.localize('MF.folderImportSuccess'));
@@ -1269,7 +1302,7 @@ async function createUserFolders(){
             }
             let folderName = user.name;
             let folderColor = user.data.color;
-            let folder = MacroFolder.create({
+            let folder = game.MF.MacroFolder.create({
                 titleText:folderName,
                 colorText:folderColor,
                 parent:userFolderId
