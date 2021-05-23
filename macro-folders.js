@@ -810,6 +810,14 @@ function defineClasses(){
         });
         return cls.updateDocuments(updates, {diff: false, recursive: false, noHook: true});
     }
+    libWrapper.register(mod,'MacroConfig.prototype._updateObject',async function(wrapper, ...args){
+        let result = await wrapper(...args);
+        if (ui.macros.element.length>0)
+            ui.macros.refresh()
+        else
+            initFolders(false);
+        return result;
+    },'WRAPPER');
     libWrapper.register(mod,'PermissionControl.prototype._updateObject',async function(wrapper, ...args){
         if (this.document instanceof Macro){
             game.settings.set(mod,'updating',true);
@@ -826,12 +834,14 @@ function defineClasses(){
     },'MIXED');
 
     libWrapper.register(mod,'Macro.prototype._onDelete',async function(wrapper, ...args){
-        await wrapper(...args);
-        if (game.settings.get(mod,'updating') || !game.macros.get([...args][1])) return;
-        game.customFolders.macro = null;
-        await initFolders(false);
+        let wasMacroInWorld = game.macros.has(this.id) || ui.hotbar.macros.some(x => x.macro?.id === this.id);
+        let result = await wrapper(...args);
+        if (game.settings.get(mod,'updating') || !wasMacroInWorld) return;
         if (ui.macros.element.length>0)
-            ui.macros.renderPopout();
+            ui.macros.refresh();
+        else
+            initFolders(false);
+        return result;
     },'WRAPPER');
     libWrapper.register(mod,'Macro.create',async function(wrapper, ...args){
         let data = [...args][0];
@@ -851,20 +861,22 @@ function defineClasses(){
     },'WRAPPER');
     libWrapper.register(mod,'Macro.prototype._onCreate',async function(wrapper, ...args){
         await wrapper(...args);
-        if (game.settings.get(mod,'updating') || !game.macros.get([...args][2])) return;
-        game.customFolders.macro = null;
-        await initFolders(false);
+        let isMacroInWorld = game.macros.has(this.id) || ui.hotbar.macros.some(x => x.macro?.id === this.id);
+        if (game.settings.get(mod,'updating') || !isMacroInWorld) return;
         if (ui.macros.element.length>0)
-            ui.macros.renderPopout(true);
+            ui.macros.refresh();
+        else
+            initFolders(false);
     },'WRAPPER');
 
     libWrapper.register(mod,'Macro.prototype._onUpdate',async function(wrapper, ...args){
         await wrapper(...args);
-        if (game.settings.get(mod,'updating') || !game.macros.get([...args][2])) return;
-        game.customFolders.macro = null;
-        await initFolders(false);
+        let isMacroInWorld = game.macros.has(this.id) || ui.hotbar.macros.some(x => x.macro?.id === this.id);
+        if (game.settings.get(mod,'updating') || !isMacroInWorld) return;
         if (ui.macros.element.length>0)
-            ui.macros.renderPopout(true);
+            ui.macros.refresh();
+        else
+            initFolders(false);
     },'WRAPPER');
 
     libWrapper.register(mod,'CompendiumCollection.prototype.importAll',async function(wrapper, ...args){
