@@ -800,7 +800,12 @@ function libWrapperRegister(){
 
     libWrapper.register(mod,'Compendium.prototype.importAll',async function(wrapper, ...args){
         await game.settings.set(mod,'updating',true);
-        await wrapper({folderId=null, folderName=""}={});
+        let nArgs = [...args][0]
+        if (nArgs.folderId != null && nArgs.folderName != null && this.entity === 'Macro'){
+            nArgs.folderId = null;
+            nArgs.folderName = null;
+        }
+        await wrapper(nArgs);
         if (this.entity === 'Macro'){
             await initFolders(false);
         }
