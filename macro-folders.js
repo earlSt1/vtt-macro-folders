@@ -407,7 +407,7 @@ function defineClasses(){
     }
     MacroFolder.prototype.testUserPermission = Macro.prototype.testUserPermission;
     MacroFolder.prototype.getUserLevel = Macro.prototype.getUserLevel;
-    class MacroFolderDirectory extends SidebarDirectory{
+    class MacroFolderDirectory extends MacroDirectory{
         /** @override */
         static get defaultOptions() {
             return foundry.utils.mergeObject(super.defaultOptions, {
