@@ -571,13 +571,7 @@ function defineClasses(){
             x[i].callback = async function(li)  {
                 const entity = game.macros.get(li.data("entityId"));
                 let originalEntry = game.customFolders.macro.entries.get(entity.id);
-
-                await entity.clone({name: `${entity.name} (Copy)`}).then(async(result) => {
-                    result.data.folder = originalEntry.data.folder;
-                    await game.customFolders.macro.folders.get(result.data.folder).addMacro(result.id,false);
-
-                    await initFolders(true);
-                });
+                return entity.clone({name: `${entity.name} (Copy)`,folder: originalEntry.data.folder}, {save: true});
             }
             return x;
         }
@@ -852,7 +846,6 @@ function defineClasses(){
                 let folderId = data.folder;
                 data.folder = null;
                 let result = await wrapper(data,[...args][1]);
-                console.log(result);
                 await game.customFolders.macro.folders.get(folderId).addMacro(result.id);
                 return result;
             }
