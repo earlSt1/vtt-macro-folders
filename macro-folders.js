@@ -650,7 +650,7 @@ function defineClasses(){
                             });
                     }
                 },{
-                    name: "CF.moveFolder",
+                    name: "MF.moveFolder",
                     icon: '<i class="fas fa-sitemap"></i>',
                     condition: header => { 
                         return game.user.isGM && !game.customFolders.macro.folders.get(header.parent().data("folderId")).isDefault
