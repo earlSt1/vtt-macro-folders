@@ -553,9 +553,10 @@ function defineClasses(){
                 title: `${game.i18n.localize("MACRO.Delete")} ${entity.name}`,
                 content: `<h4>${game.i18n.localize("AreYouSure")}</h4><p>${game.i18n.localize("MACRO.DeleteWarning")}</p>`,
                 yes: async () => {
+                    game.customFolders.macro = null;
                     await entity.delete.bind(entity)()
                     
-                    game.customFolders.macro = null;
+                    
                     initFolders(true);
                     if (ui.macros.element.length>0)
                         ui.macros.renderPopout(true);
