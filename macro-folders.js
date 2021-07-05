@@ -818,8 +818,10 @@ function defineClasses(){
             game.settings.set(mod,'updating',true);
             wrapper(...args).then(async () => {
                 await game.settings.set(mod,'updating',false)
-                if (ui.macros.element.length>0)
-                    ui.macros.renderPopout(true)
+                if (ui.macros.element.length>0){
+                    game.customFolders.macros = null;
+                    initFolders(true);
+                }
             });
         } else if (this.document instanceof MacroFolder){
             return permissionUpdateForMacroFolder.bind(this)(...args)
