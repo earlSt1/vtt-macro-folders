@@ -71,13 +71,13 @@ function defineClasses(){
             return this.data;
         }
         get visible(){
-            return this.macro.visible;
+            return this.macro?.visible;
         }
         get name(){
             return this.data.name
         }
         get sheet(){
-            return this.macro.sheet;
+            return this.macro?.sheet;
         }
     }
     class MacroFolderCollection extends WorldCollection{
