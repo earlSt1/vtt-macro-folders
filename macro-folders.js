@@ -923,7 +923,6 @@ async function initFolders(refresh=false){
     if (Object.keys(allFolders).length == 0 && allFolders.constructor === Object){
         // initialize settings
         init1 = true;
-        let entityId = {}
   
         allFolders = {
             hidden:{
@@ -938,6 +937,21 @@ async function initFolders(refresh=false){
                 colorText:'#000000'
             }
         };
+    }
+    if (!allFolders.default){
+        allFolders.default = {
+            macroList:[],
+            titleText:'Default',
+            _id:'default',
+            colorText:'#000000'
+        }
+    }
+    if (!allFolders.hidden){
+        allFolders.hidden = {
+            macroList:[],
+            titleText :'hidden-macros',
+            _id:'hidden'
+        }
     }
     for (let folder of Object.values(allFolders)){
         let macros = []
