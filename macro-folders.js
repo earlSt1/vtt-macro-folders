@@ -183,7 +183,7 @@ function defineClasses(){
             }
             game.customFolders.macro.folders.get(this.id).data = duplicate(this.data);
             if (refresh && ui.macros.element.length>0){
-                ui.macros.renderPopout(true);
+                ui.macros.customRender();
             }
         }
         async delete(refresh=true, deleteAll=false){
@@ -218,8 +218,9 @@ function defineClasses(){
             delete allFolders[this.id];
             
             await game.settings.set(mod,'mfolders',allFolders)
-            if (refresh && ui.macros.element.length>0)
-                ui.macros.renderPopout(true);
+            if (refresh && ui.macros.element.length>0){
+                ui.macros.customRender()
+            }
             
         }
         async addMacros(macroList,refresh=true){
@@ -333,7 +334,7 @@ function defineClasses(){
             await this.save();
             
             await this._updatePath()
-            ui.macros.renderPopout(true);
+            ui.macros.customRender()
         }
         // Update path of this and all child folders
         async _updatePath(currentFolder=this,parent=this){
@@ -407,11 +408,12 @@ function defineClasses(){
     }
     MacroFolder.prototype.testUserPermission = Macro.prototype.testUserPermission;
     MacroFolder.prototype.getUserLevel = Macro.prototype.getUserLevel;
-    class MacroFolderDirectory extends MacroDirectory{
+    let cls = game.modules.get('sidebar-macros')?.active ? SidebarDirectory : MacroDirectory
+    class MacroFolderDirectory extends cls{
         /** @override */
         static get defaultOptions() {
             return foundry.utils.mergeObject(super.defaultOptions, {
-                id: "macro",
+                id: "macros",
                 template: "modules/macro-folders/templates/macro-directory.html",
                 title: "Macros",
                 dragDrop: [{ dragSelector: ".macro,.macro-folder", dropSelector: ".macro-folder"}],
@@ -494,10 +496,18 @@ function defineClasses(){
             return {
                 user: game.user,
                 tree: this.tree,
+                sidebarMacros: game.modules.get('sidebar-macros')?.active
             };
         }
         refresh(){
             initFolders(true);
+        }
+        customRender(){
+            if (!game.modules.get('sidebar-macros')?.active){
+                ui.macros.renderPopout(true);
+            }else{
+                ui.macros.render(true);
+            }
         }
         _onCreateFolder(event) {
 
@@ -558,9 +568,9 @@ function defineClasses(){
                     
                     
                     initFolders(true);
-                    if (ui.macros.element.length>0)
-                        ui.macros.renderPopout(true);
-                    
+                    if (ui.macros.element.length>0){
+                        ui.macros.customRender()
+                    }
                 },
                 options: {
                     top: Math.min(li[0].offsetTop, window.innerHeight - 350),
@@ -896,6 +906,7 @@ function defineClasses(){
         this.data.folder = [...args][0];
     },'OVERRIDE');
     CONFIG.MacroFolder = {documentClass : MacroFolder};
+    CONFIG.ui.macros = MacroFolderDirectory;
     game.MF = {
         MacroEntry:MacroEntry,
         MacroEntryCollection:MacroEntryCollection,
@@ -1011,8 +1022,9 @@ async function initFolders(refresh=false){
         let directChildren = allEntries.filter(f => f.data?.pathToFolder?.length > 0 && f.data.pathToFolder[f.data.pathToFolder.length-1] === mf.id)
         mf.children = directChildren;
     }
-    if (refresh)
-        ui.macros.renderPopout(true);
+    if (refresh){
+        ui.macros.customRender()
+    }
 
 }
 class ImportExportConfig extends FormApplication {
@@ -1047,10 +1059,10 @@ class ImportExportConfig extends FormApplication {
                 if (success){
                     await game.settings.set(mod,'user-folder-location','');
                     game.settings.set(mod,'mfolders',importJson).then(async function(){
-                        //await createInitialFolder();
                         await initFolders(true);
-                        if (ui.macros.element.length>0)
-                            ui.macros.renderPopout(true);
+                        if (ui.macros.element.length>0){
+                            ui.macros.customRender()
+                        }
                         ui.notifications.info(game.i18n.localize('MF.folderImportSuccess'));
                     });
                 }else{
@@ -1443,12 +1455,11 @@ export class Settings{
 // ==========================
 // Main hook setup
 // ==========================
-Hooks.on('ready',async function(){
+Hooks.on('init',async function(){
     defineClasses();
     await Settings.registerSettings();
-    
-    ui.macros = new game.MF.MacroFolderDirectory();
-    game.macros.apps.splice(1,1);
+})
+Hooks.on('ready',async function(){ 
     if (shouldAddExportButtons()){
         Hooks.call('addExportButtonsForCF')
     }
