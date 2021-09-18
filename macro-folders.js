@@ -788,7 +788,47 @@ function defineClasses(){
             }
             }
         }
+        async _handleDroppedDocument(target,data){
+            // Taken from foundry.js#24065, slightly modified for MF
+            // Determine the closest folder ID
+            const closestFolder = target ? target.closest(".folder") : null;
+            if ( closestFolder ) closestFolder.classList.remove("droptarget");
+            const closestFolderId = closestFolder ? closestFolder.dataset.folderId : null;
 
+            // Obtain the dropped document
+            const cls = getDocumentClass(this.constructor.documentName);
+            const collection = this.constructor.collection;
+            const isSort = collection.has(data.id);
+            const document = await cls.fromDropData(data, {importWorld: true});
+            if ( !document ) return;
+
+            // Sort relative to another Document
+            const sortData = {sortKey: "sort", sortBefore: true};
+            const isRelative = target && target.dataset.entityId;
+            if ( isRelative ) {
+                if ( document.id === target.dataset.entityId ) return; // Don't drop on yourself
+                const targetDocument = collection.get(target.dataset.entityId);
+                sortData.target = targetDocument;
+                sortData.folderId = targetDocument.data.folder;
+            }
+
+            // Sort relative to the closest Folder
+            else {
+            sortData.target = null;
+            sortData.folderId = closestFolderId;
+            }
+
+            // Determine siblings and perform sort
+            sortData.siblings = collection.filter(doc => {
+            return (doc.data.folder === sortData.folderId) && (doc.id !== data.id);
+            });
+            // Macro Folders: Dont send folderId to update (will fail validation checks)
+            sortData.updateData = { folder: null };
+            
+            // Macro Folders: Add macro to correct folder
+            await game.customFolders.macro.folders.get(closestFolderId).addMacro(document.id,true)
+            return document.sortRelative(sortData);
+        }
     }
     //Taken from foundry.js (PermissionControl._updateObject)
     function permissionUpdateForMacroFolder(event,formData){
@@ -905,6 +945,7 @@ function defineClasses(){
     libWrapper.register(mod,'Macro.prototype.folder#set',function(...args){
         this.data.folder = [...args][0];
     },'OVERRIDE');
+
     CONFIG.MacroFolder = {documentClass : MacroFolder};
     CONFIG.ui.macros = MacroFolderDirectory;
     game.MF = {
