@@ -925,19 +925,64 @@ function defineClasses(){
             initFolders(false);
     },'WRAPPER');
 
-    libWrapper.register(mod,'CompendiumCollection.prototype.importAll',async function(wrapper, ...args){
-        await game.settings.set(mod,'updating',true);
-        let nArgs = [...args][0]
-        if (nArgs.folderId != null && nArgs.folderName != null && this.entity === 'Macro'){
-            nArgs.folderId = null;
-            nArgs.folderName = null;
-        }
-        await wrapper(nArgs);
-        if (this.entity === 'Macro'){
+    libWrapper.register(mod,'CompendiumCollection.prototype.importAll',async function(wrapped, args){
+        if (this.documentName === 'Macro'){
+            //Modifications to CompendiumCollection.importAll from foundry.js
+            // for custom folder functionality.
+            const folderName = args.folderName || this.title;
+            const options = {}
+            await game.settings.set(mod,'updating',true);
+            // Optionally, create a folder
+            let folder = game.customFolders.macro.folders.contents.find(x => x.name === folderName)
+            let f = folder ? folder : await game.MF.MacroFolder.create({
+                titleText: folderName,
+                parent: null
+            });
+            await f.save(false);
+            //let folderId = f.id;
+            //folderName = f.name;
+            
+
+            // Load all content
+            const documents = await this.getDocuments();
+            ui.notifications.info(game.i18n.format("COMPENDIUM.ImportAllStart", {
+                number: documents.length,
+                type: this.documentName,
+                folder: folderName
+            }));
+
+            // Prepare import data
+            const collection = game.collections.get(this.documentName);
+            const createData = documents.map(doc => {
+                const data = collection.fromCompendium(doc);
+                return data;
+            })
+            console.log(createData);
+            createData.forEach(d => d.flags.cf = null)
+
+            // Create World Documents in batches
+            const chunkSize = 100;
+            const nBatches = Math.ceil(createData.length / chunkSize);
+            let created = [];
+            for ( let n=0; n<nBatches; n++ ) {
+                const chunk = createData.slice(n*chunkSize, (n+1)*chunkSize);
+                const docs = await this.documentClass.createDocuments(chunk, options);
+                created = created.concat(docs);
+            }
+            await f.addMacros(created.map(m => m.id));
+            // Notify of success
+            ui.notifications.info(game.i18n.format("COMPENDIUM.ImportAllFinish", {
+                number: created.length,
+                type: this.documentName,
+                folder: folderName
+            }));
             await initFolders(false);
+            await game.settings.set(mod,'updating',false);
+            return created;
+        }else{
+            await wrapped(args);
         }
-        await game.settings.set(mod,'updating',false);
-    },'WRAPPER');
+    },'MIXED');
     libWrapper.register(mod,'Macro.prototype.folder',function(...args){
         if ( !this.data.folder ) return null;
         return game.customFolders.macro.folders.get(this.data.folder);
