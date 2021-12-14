@@ -163,9 +163,9 @@ function defineClasses(){
                 await game.settings.set(mod,'mfolders',allFolders)
             }
             game.customFolders.macro.folders.get(this.id).data = duplicate(this.data);
-            if (refresh && ui.macros.element.length>0){
-                ui.macros.customRender();
-            }
+            // if (refresh && ui.macros.element.length>0){
+            //     ui.macros.customRender();
+            // }
         }
         async delete(refresh=true, deleteAll=false){
             let nextFolder = (this.parent) ? this.parent : this.collection.default;
@@ -199,9 +199,9 @@ function defineClasses(){
             delete allFolders[this.id];
             
             await game.settings.set(mod,'mfolders',allFolders)
-            if (refresh && ui.macros.element.length>0){
-                ui.macros.customRender()
-            }
+            // if (refresh && ui.macros.element.length>0){
+            //     ui.macros.customRender()
+            // }
             
         }
         async addMacros(macroList,refresh=true){
@@ -315,7 +315,7 @@ function defineClasses(){
             await this.save();
             
             await this._updatePath()
-            ui.macros.customRender()
+            // ui.macros.customRender()
         }
         // Update path of this and all child folders
         async _updatePath(currentFolder=this,parent=this){
@@ -549,9 +549,9 @@ function defineClasses(){
                     
                     
                     initFolders(true);
-                    if (ui.macros.element.length>0){
-                        ui.macros.customRender()
-                    }
+                    // if (ui.macros.element.length>0){
+                    //     ui.macros.customRender()
+                    // }
                 },
                 options: {
                     top: Math.min(li[0].offsetTop, window.innerHeight - 350),
@@ -964,9 +964,9 @@ class ImportExportConfig extends FormApplication {
                     await game.settings.set(mod,'user-folder-location','');
                     game.settings.set(mod,'mfolders',importJson).then(async function(){
                         await initFolders(true);
-                        if (ui.macros.element.length>0){
-                            ui.macros.customRender()
-                        }
+                        // if (ui.macros.element.length>0){
+                        //     ui.macros.customRender()
+                        // }
                         ui.notifications.info(game.i18n.localize('MF.folderImportSuccess'));
                     });
                 }else{
@@ -1237,7 +1237,7 @@ function displayConversionDialog(){
                     label:"Convert",
                     callback:async () => {
                         await beginConversion();
-                        game.settings.set(mod,'display-migrate-gui',false);                  
+                        game.settings.set(mod,'display-migrate-gui',false);       
                     }
                 },
                 cancel:{
