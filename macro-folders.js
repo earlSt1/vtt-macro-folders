@@ -14,25 +14,6 @@ Handlebars.registerHelper('ifInm', function(elem, macros, options) {
     }
     return options.inverse(this);
 });
-function alphaSortMacros(macros){
-    return macros.sort(function(first,second){
-        let firstName = first.data.name;
-        let secondName = second.data.name;
-        if (firstName < secondName){
-            return -1;
-        }else if (firstName > secondName){
-            return 1;
-        }else{
-            return 0;
-        }
-    });
-}
-function shouldAddExportButtons(){
-    let availableCompendium = game.packs.contents.some(e => e.documentClass.documentName === 'Macro' && !e.locked)
-    let correctCFVersion = game.modules.get('compendium-folders') != null && game.modules.get('compendium-folders').data.version >= '2.0.0'
-    let correctFoundryVersion = game.data.version >= '0.7.3'
-    return availableCompendium && correctCFVersion && correctFoundryVersion
-}
 // ==========================
 // Folder object structure
 // ==========================
@@ -830,31 +811,6 @@ function defineClasses(){
             return document.sortRelative(sortData);
         }
     }
-    //Taken from foundry.js (PermissionControl._updateObject)
-    function permissionUpdateForMacroFolder(event,formData){
-        event.preventDefault();
-        if (!game.user.isGM) throw new Error("You do not have the ability to configure permissions.");
-    
-        // Collect user permissions
-        const perms = {};
-        for ( let [user, level] of Object.entries(formData) ) {
-            if ( (name !== "default") && (level === -1) ) {
-                delete perms[user];
-                continue;
-            }
-            perms[user] = level;
-        }
-        const cls = Macro
-        const updates = this.document.content.map(e => {
-            const p = foundry.utils.deepClone(e.data.permission);
-            for ( let [k, v] of Object.entries(perms) ) {
-                if ( v === -2 ) delete p[k];
-                else p[k] = v;
-            }
-            return {_id: e.id, permission: p}
-        });
-        return cls.updateDocuments(updates, {diff: false, recursive: false, noHook: true});
-    }
     game.MF = {
         MacroEntry:MacroEntry,
         MacroEntryCollection:MacroEntryCollection,
@@ -1018,186 +974,6 @@ class ImportExportConfig extends FormApplication {
                 }
             }catch(error){ui.notifications.error('MF.folderImportFailure')}
         }
-    }
-}
-class MacroFolderMoveDialog extends FormApplication {
-    static get defaultOptions() {
-        const options = super.defaultOptions;
-        options.id = "macro-folder-move";
-        options.template = "modules/macro-folders/templates/macro-folder-move.html";
-        options.width = 500;
-        return options;
-    }
-    get title() {
-        return game.i18n.localize("MF.moveFolder")+': '+this.object.name;
-    }
-    async getData(options) { 
-        let formData = []
-        for (let folder of game.customFolders.macro.folders){
-            if (!folder.isHidden 
-                && !folder.isDefault 
-                && (folder.id != this.object?.parent?.id)
-                && (folder.id != this.object.id)
-                // Folder path does not contain this.object.id
-                && ((!folder.path?.includes(this.object.id) && folder.path.length > 0
-                    || folder.path.length === 0)
-            
-                // Folder is not this
-            )){
-                formData.push({
-                    'titleText':folder.name,
-                    'fullPathTitle':folder.pathName,
-                    'id':folder.id
-                })
-            }
-        }
-
-        formData.sort(function(first,second){
-            if (first.fullPathTitle < second.fullPathTitle){
-                return -1
-            } else if (first.fullPathTitle > second.fullPathTitle){
-                return 1;
-            }
-            return 0;
-        });
-        if (this.object.parent){
-            formData.splice(0,0,{
-                'titleText':'Root',
-                'titlePath':'Root',
-                'fullPathTitle':'Root',
-                'id':'root'
-            })
-        }
-        return {
-            folder: this.object,
-            allFolders: formData,
-            submitText: game.i18n.localize("MF.moveFolder")
-        }
-    }
-
-    async _updateObject(event, formData) {
-        let destFolderId = null;
-        document.querySelectorAll('#folder-move input[type=\'radio\']').forEach(function(e){
-            if (e.checked){
-                destFolderId=e.value;
-                return;} 
-        });
-
-        this.object.moveFolder(destFolderId);
-        return;       
-
-        
-    }
-}
-class MacroFolderEditConfig extends FormApplication {
-    static get defaultOptions() {
-        const options = super.defaultOptions;
-        options.id = "macro-folder-edit";
-        options.template = "modules/macro-folders/templates/macro-folder-edit.html";
-        options.width = 500;
-        return options;
-    }
-  
-    get title() {
-        if ( this.isEditDialog  ) {
-            return `${game.i18n.localize("FOLDER.Update")}: ${this.object.name}`;
-        }
-        return game.i18n.localize("FOLDER.Create");
-    }
-    getGroupedMacros(){
-        let allFolders = game.settings.get(mod,'mfolders');
-        let assigned = {};
-        let unassigned = {};
-        Object.keys(allFolders).forEach(function(key){
-            if (key != 'hidden' && key != 'default'){
-                for (let a of allFolders[key].macroList){
-                    if (Array.from(game.macros.keys()).includes(a)){
-                        assigned[a]=game.macros.get(a);
-                    }
-                }
-            }
-        });
-        for (let macro of game.macros.keys()){
-            if (!Object.keys(assigned).includes(macro)){
-                unassigned[macro] = game.macros.get(macro);
-            }
-        }
-        return [assigned,unassigned];
-
-    }
-    /** @override */
-    async getData(options) {
-      let allMacros = this.getGroupedMacros();
-      return {
-        folder: this.object,
-        defaultFolder:this.object.id==='default',
-        amacros: alphaSortMacros(Object.values(allMacros[0])),
-        umacros: alphaSortMacros(Object.values(allMacros[1])),
-        players:game.users.contents,
-        submitText: game.i18n.localize(this.isEditDialog ? "FOLDER.Update" : "FOLDER.Create"),
-        deleteText: (this.isEditDialog && this.object.id != 'default')?game.i18n.localize("MF.deleteFolder"):null
-      }
-    }
-  
-    /** @override */
-    async _updateObject(event, formData) {
-        this.object.name = formData.name;
-        if (formData.color.length===0){
-            this.object.color = '#000000'; 
-        }else{
-            this.object.color = formData.color;
-        }
-        if (formData.fontColor.length === 0){
-            this.object.fontColor = '#FFFFFF'
-        }else{
-            this.object.fontColor = formData.fontColor;
-        }
-        if (formData.icon != null){
-            if (formData.icon.length==0){
-                this.object.folderIcon = null;
-            }else{
-                this.object.folderIcon = formData.icon;
-            }
-        }else{
-            this.object.folderIcon = null;
-        }
-        if (formData.player != null){
-            let existingDefault = game.customFolders.macro.folders.getPlayerFolder(formData.player);
-            if (existingDefault){
-                existingDefault.playerDefault = null;
-                existingDefault.save();
-            }
-            this.object.playerDefault = formData.player;
-        }
-        if (this.object.data.id != 'default'){
-            let macrosToAdd = []
-            let macrosToRemove = []
-
-            for (let formEntryId of game.macros.keys()){
-                //let formEntryId = entry.collection.replace('.','');
-                if (formData[formEntryId] && !this.object?.content?.map(c => c.id)?.includes(formEntryId)){
-                    // Box ticked AND macro not in folder
-                    macrosToAdd.push(formEntryId);
-                }else if (!formData[formEntryId] && this.object?.content?.map(c => c.id)?.includes(formEntryId)){
-                    // Box unticked AND macro in folder
-                    macrosToRemove.push(formEntryId);
-                }
-            }
-            if (macrosToAdd.length>0)
-                await this.object.addMacros(macrosToAdd,false);
-            
-            if (macrosToRemove.length>0)
-                await this.object.removeMacros(macrosToRemove,false);
-
-            if (this.object.data.parent && !game.customFolders.macro.folders.get(this.object.data.parent)?.children?.some(x => x.id === this.object.id)){
-                await this.object.moveFolder(this.object.data.parent);
-            }
-        }
-        await this.object.save(true);
-    }
-    showDialog(edit=true){
-        this.isEditDialog = edit;
-        this.render(true);
     }
 }
 // ==========================
@@ -1407,7 +1183,7 @@ export class Settings{
 }
 
 // ==========================
-// Main hook setup
+// POST v9 CHANGES
 // ==========================
 async function recursivelyConvertMacroFolders(parent,currentNode,root=false){
     let nextParent = parent;
