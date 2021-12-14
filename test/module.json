@@ -3,14 +3,14 @@
     "title": "Macro Folders",
     "description": "Collapsable folders for macros - TEST",
     "author": "Erceron",
-    "version": "1.2.1",
-    "minimumCoreVersion": "0.8.5",
-    "compatibleCoreVersion":"0.8.5",
+    "version": "1.3.0",
+    "minimumCoreVersion": "9",
+    "compatibleCoreVersion":"9",
     "esmodules": [
         "./macro-folders.js"
       ],
     "styles": ["./styles.css"],
     "url": "https://github.com/earlSt1/vtt-macro-folders",
-    "manifest": "https://raw.githubusercontent.com/earlSt1/vtt-macro-folders/08x-update/module.json",
-    "download": "https://github.com/earlSt1/vtt-macro-folders/archive/08x-update.zip"
+    "manifest": "https://raw.githubusercontent.com/earlSt1/vtt-macro-folders/09x-update/module.json",
+    "download": "https://github.com/earlSt1/vtt-macro-folders/archive/09x-update.zip"
   }
