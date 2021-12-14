@@ -1442,7 +1442,7 @@ async function beginConversion(){
     let results = SidebarDirectory.setupFolders(game.customFolders.macro.folders.contents,game.customFolders.macro.entries.contents);
 
     await recursivelyConvertMacroFolders(null,results,true);
-    ui.notifications.notify('Migration complete!')
+    ui.notifications.notify('Migration complete! You can now safely disable/uninstall the module Macro Folders')
 }
 function displayConversionDialog(){
     const shouldDisplay = game.settings.get(mod,'display-migrate-gui');
@@ -1452,7 +1452,7 @@ function displayConversionDialog(){
             content:
                 `<p><strong>Good news everyone!</strong> As on v9 Macro Folders have been worked into Core Foundry!</p>
                 <p>To assist with the migration of your worlds, I've included a conversion process to change your Macro Folders folder structure to Core Foundry folders</p>
-                <p>Simply click <strong>Convert</strong> below to begin the process. <i>(You can also access this dialog through the module settings)</i></p><br/><br/>
+                <p>Simply click <strong>Convert</strong> below to begin the process.</p><br/><br/>
                 <p>I might work on reintroducing some features in the future (like Player Default folders), but for now the bulk of this module can be done by Core</p>
                 <p><strong>Thanks for all your support!</strong> and if you'd like to buy me a coffee you can chip in at my <a href="https://ko-fi.com/erceron">kofi</a></p>
                 `,
@@ -1466,10 +1466,8 @@ function displayConversionDialog(){
                 },
                 cancel:{
                     label:"Skip",
-                    callback: () => {
-                        game.settings.set(mod,'display-migrate-gui',false);
-                    }
-                },
+                    callback: () => {}
+                }
             }
         },{
             width:550
