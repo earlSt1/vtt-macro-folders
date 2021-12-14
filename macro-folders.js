@@ -855,144 +855,6 @@ function defineClasses(){
         });
         return cls.updateDocuments(updates, {diff: false, recursive: false, noHook: true});
     }
-    libWrapper.register(mod,'MacroConfig.prototype._updateObject',async function(wrapper, ...args){
-        let result = await wrapper(...args);
-        if (ui.macros.element.length>0)
-            ui.macros.refresh()
-        else
-            initFolders(false);
-        return result;
-    },'WRAPPER');
-    libWrapper.register(mod,'PermissionControl.prototype._updateObject',async function(wrapper, ...args){
-        if (this.document instanceof Macro){
-            game.settings.set(mod,'updating',true);
-            wrapper(...args).then(async () => {
-                await game.settings.set(mod,'updating',false)
-                if (ui.macros.element.length>0){
-                    game.customFolders.macros = null;
-                    initFolders(true);
-                }
-            });
-        } else if (this.document instanceof MacroFolder){
-            return permissionUpdateForMacroFolder.bind(this)(...args)
-        }else{
-            return wrapper(...args);
-        }
-    },'MIXED');
-
-    libWrapper.register(mod,'Macro.prototype._onDelete',async function(wrapper, ...args){
-        let wasMacroInWorld = game.macros.has(this.id) || ui.hotbar.macros.some(x => x.macro?.id === this.id);
-        let result = await wrapper(...args);
-        if (game.settings.get(mod,'updating') || !wasMacroInWorld) return;
-        if (ui.macros.element.length>0)
-            ui.macros.refresh();
-        else
-            initFolders(false);
-        return result;
-    },'WRAPPER');
-    libWrapper.register(mod,'Macro.create',async function(wrapper, ...args){
-        let data = [...args][0];
-        let isTemporary = [...args][1]?.temporary;
-        let isInCompendium = [...args][1]?.pack
-        if (!isTemporary && !isInCompendium){
-            if (data.folder){
-                let folderId = data.folder;
-                data.folder = null;
-                let result = await wrapper(data,[...args][1]);
-                await game.customFolders.macro.folders.get(folderId).addMacro(result.id);
-                return result;
-            }
-        }
-        return wrapper(...args);
-    },'WRAPPER');
-    libWrapper.register(mod,'Macro.prototype._onCreate',async function(wrapper, ...args){
-        await wrapper(...args);
-        let isMacroInWorld = game.macros.has(this.id) || ui.hotbar.macros.some(x => x.macro?.id === this.id);
-        if (game.settings.get(mod,'updating') || !isMacroInWorld) return;
-        if (ui.macros.element.length>0)
-            ui.macros.refresh();
-        else
-            initFolders(false);
-    },'WRAPPER');
-
-    libWrapper.register(mod,'Macro.prototype._onUpdate',async function(wrapper, ...args){
-        await wrapper(...args);
-        let isMacroInWorld = game.macros.has(this.id) || ui.hotbar.macros.some(x => x.macro?.id === this.id);
-        if (game.settings.get(mod,'updating') || !isMacroInWorld) return;
-        if (ui.macros.element.length>0)
-            ui.macros.refresh();
-        else
-            initFolders(false);
-    },'WRAPPER');
-
-    libWrapper.register(mod,'CompendiumCollection.prototype.importAll',async function(wrapped, args){
-        if (this.documentName === 'Macro'){
-            //Modifications to CompendiumCollection.importAll from foundry.js
-            // for custom folder functionality.
-            const folderName = args.folderName || this.title;
-            const options = {}
-            await game.settings.set(mod,'updating',true);
-            // Optionally, create a folder
-            let folder = game.customFolders.macro.folders.contents.find(x => x.name === folderName)
-            let f = folder ? folder : await game.MF.MacroFolder.create({
-                titleText: folderName,
-                parent: null
-            });
-            await f.save(false);
-            //let folderId = f.id;
-            //folderName = f.name;
-            
-
-            // Load all content
-            const documents = await this.getDocuments();
-            ui.notifications.info(game.i18n.format("COMPENDIUM.ImportAllStart", {
-                number: documents.length,
-                type: this.documentName,
-                folder: folderName
-            }));
-
-            // Prepare import data
-            const collection = game.collections.get(this.documentName);
-            const createData = documents.map(doc => {
-                const data = collection.fromCompendium(doc);
-                return data;
-            })
-            console.log(createData);
-            createData.forEach(d => d.flags.cf = null)
-
-            // Create World Documents in batches
-            const chunkSize = 100;
-            const nBatches = Math.ceil(createData.length / chunkSize);
-            let created = [];
-            for ( let n=0; n<nBatches; n++ ) {
-                const chunk = createData.slice(n*chunkSize, (n+1)*chunkSize);
-                const docs = await this.documentClass.createDocuments(chunk, options);
-                created = created.concat(docs);
-            }
-            await f.addMacros(created.map(m => m.id));
-            // Notify of success
-            ui.notifications.info(game.i18n.format("COMPENDIUM.ImportAllFinish", {
-                number: created.length,
-                type: this.documentName,
-                folder: folderName
-            }));
-            await initFolders(false);
-            await game.settings.set(mod,'updating',false);
-            return created;
-        }else{
-            await wrapped(args);
-        }
-    },'MIXED');
-    libWrapper.register(mod,'Macro.prototype.folder',function(...args){
-        if ( !this.data.folder ) return null;
-        return game.customFolders.macro.folders.get(this.data.folder);
-    },'OVERRIDE');
-    libWrapper.register(mod,'Macro.prototype.folder#set',function(...args){
-        this.data.folder = [...args][0];
-    },'OVERRIDE');
-
-    CONFIG.MacroFolder = {documentClass : MacroFolder};
-    CONFIG.ui.macros = MacroFolderDirectory;
     game.MF = {
         MacroEntry:MacroEntry,
         MacroEntryCollection:MacroEntryCollection,
@@ -1108,9 +970,9 @@ async function initFolders(refresh=false){
         let directChildren = allEntries.filter(f => f.data?.pathToFolder?.length > 0 && f.data.pathToFolder[f.data.pathToFolder.length-1] === mf.id)
         mf.children = directChildren;
     }
-    if (refresh){
-        ui.macros.customRender()
-    }
+    // if (refresh){
+    //     ui.macros.customRender()
+    // }
 
 }
 class ImportExportConfig extends FormApplication {
@@ -1535,19 +1397,90 @@ export class Settings{
                 }
             }
         }
+        game.settings.register(mod,'display-migrate-gui',{
+            scope:'world',
+            config:false,
+            type:Boolean,
+            default:true
+        });
     }
 }
 
 // ==========================
 // Main hook setup
 // ==========================
+async function recursivelyConvertMacroFolders(parent,currentNode,root=false){
+    let nextParent = parent;
+    if (!root)
+        nextParent = await convertMacroFolder(currentNode,parent,currentNode.content,root)
+
+    ///do stuff
+    for (let mf of currentNode.children){
+        await recursivelyConvertMacroFolders(nextParent,mf)
+    }
+}
+async function convertMacroFolder(mf,parent,content,root=false){
+    const folderData = {
+        name: mf.name,
+        type: 'Macro',
+        sorting: "a",
+        parent: parent?.id,
+        content: content ? content.map(c => c.id) : [],
+        color:mf.color
+    };
+    const f = await Folder.create(folderData);
+    const updates = content.map(c => ({
+        _id:c.id,
+        folder:f.id
+    }))
+    await Macro.updateDocuments(updates)
+
+    return f;
+}
+async function beginConversion(){
+    await initFolders();
+    let results = SidebarDirectory.setupFolders(game.customFolders.macro.folders.contents,game.customFolders.macro.entries.contents);
+
+    await recursivelyConvertMacroFolders(null,results,true);
+    ui.notifications.notify('Migration complete!')
+}
+function displayConversionDialog(){
+    const shouldDisplay = game.settings.get(mod,'display-migrate-gui');
+    if (shouldDisplay){
+        new Dialog({
+            title:"Macro Folders Conversion",
+            content:
+                `<p><strong>Good news everyone!</strong> As on v9 Macro Folders have been worked into Core Foundry!</p>
+                <p>To assist with the migration of your worlds, I've included a conversion process to change your Macro Folders folder structure to Core Foundry folders</p>
+                <p>Simply click <strong>Convert</strong> below to begin the process. <i>(You can also access this dialog through the module settings)</i></p><br/><br/>
+                <p>I might work on reintroducing some features in the future (like Player Default folders), but for now the bulk of this module can be done by Core</p>
+                <p><strong>Thanks for all your support!</strong> and if you'd like to buy me a coffee you can chip in at my <a href="https://ko-fi.com/erceron">kofi</a></p>
+                `,
+            buttons:{
+                confirm:{
+                    label:"Convert",
+                    callback:async () => {
+                        await beginConversion();
+                        game.settings.set(mod,'display-migrate-gui',false);                  
+                    }
+                },
+                cancel:{
+                    label:"Skip",
+                    callback: () => {
+                        game.settings.set(mod,'display-migrate-gui',false);
+                    }
+                },
+            }
+        },{
+            width:550
+        }).render(true);
+        
+    }
+}
 Hooks.on('init',async function(){
     defineClasses();
     await Settings.registerSettings();
 })
 Hooks.on('ready',async function(){ 
-    if (shouldAddExportButtons()){
-        Hooks.call('addExportButtonsForCF')
-    }
-    await initFolders(false);
+    displayConversionDialog()
 });
