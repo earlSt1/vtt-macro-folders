@@ -1,3 +1,5 @@
+# 1.3.0 (2021-12-20)
+- Fixed issue with conversion process
 # 1.3.0 (2021-12-14)
 - Added conversion process to go from Macro Folders to Core folder structure.
 - Disabled most features for the time being (will work on reintroducing them to Core Macro Folders in the future)
